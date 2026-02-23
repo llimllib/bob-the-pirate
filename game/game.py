@@ -23,7 +23,7 @@ class GameState:
 class Game:
     """Main game class."""
 
-    def __init__(self):
+    def __init__(self, debug: bool = False):
         pygame.init()
         pygame.mixer.init()
 
@@ -33,6 +33,8 @@ class Game:
 
         self.state = GameState.MENU
         self.running = True
+        self.debug = debug
+        self.frame_count = 0
 
         # Game objects
         self.player = None
@@ -291,6 +293,11 @@ class Game:
         # Update camera
         self.camera.update(self.player.rect)
 
+        # Debug output
+        self.frame_count += 1
+        if self.debug and self.frame_count % 30 == 0:
+            self._print_debug_info()
+
     def draw(self) -> None:
         """Render the game."""
         if self.state == GameState.MENU:
@@ -445,8 +452,53 @@ class Game:
         cont_rect = cont.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 90))
         self.screen.blit(cont, cont_rect)
 
+    def _print_debug_info(self) -> None:
+        """Print debug information to console."""
+        if not self.player:
+            return
+
+        # Player position and physics
+        pos = f"pos=({self.player.rect.x}, {self.player.rect.y})"
+        vel = f"vel=({self.player.velocity_x}, {self.player.velocity_y:.1f})"
+        ground = f"on_ground={self.player.on_ground}"
+
+        # Animation state
+        anim_name = self.player.sprite.current_animation or "none"
+        anim = self.player.sprite.animations.get(anim_name)
+        if anim:
+            anim_info = f"anim={anim_name}[{anim.current_frame}/{len(anim.frames)}] timer={anim.timer}/{anim.frame_duration}"
+        else:
+            anim_info = f"anim={anim_name}"
+
+        # Combat state
+        combat = []
+        if self.player.attacking:
+            combat.append(f"attacking({self.player.attack_timer})")
+        if self.player.invincible:
+            combat.append(f"invincible({self.player.invincibility_timer})")
+        if self.player.hurt_timer > 0:
+            combat.append(f"hurt({self.player.hurt_timer})")
+        combat_str = " ".join(combat) if combat else "idle"
+
+        # Power-ups
+        powerups = []
+        if self.player.has_parrot:
+            powerups.append(f"parrot({self.player.parrot_timer})")
+        if self.player.has_shield:
+            powerups.append("shield")
+        if self.player.has_grog:
+            powerups.append(f"grog({self.player.grog_timer})")
+        powerup_str = " ".join(powerups) if powerups else "none"
+
+        print(f"[{self.frame_count:>5}] {pos} {vel} {ground} | {anim_info} | {combat_str} | powerups: {powerup_str}")
+
     def run(self) -> None:
         """Main game loop."""
+        if self.debug:
+            print("Debug mode enabled. Outputting player state every 30 frames (0.5s).")
+            print("Format: [frame] position velocity on_ground | animation | combat | powerups")
+            print("-" * 100)
+
         while self.running:
             self.clock.tick(FPS)
             self.handle_events()

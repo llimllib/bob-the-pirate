@@ -10,6 +10,9 @@ A Megaman-style platformer built with Python and Pygame. Captain Bob the Pirate 
 # Run the game
 uv run python main.py
 
+# Run the game with debug output
+uv run python main.py -v
+
 # Run tests
 uv run python -m pytest tests/ -v
 
@@ -25,6 +28,32 @@ uv run ruff check . && uv run pyright && uv run python -m pytest tests/ -v
 # Install dependencies
 uv sync
 ```
+
+## Debugging
+
+Run with `-v` or `--verbose` to enable debug output:
+
+```bash
+uv run python main.py -v
+```
+
+This outputs player state every 30 frames (0.5s) while playing:
+```
+[   30] pos=(100, 496) vel=(0, 0.0) on_ground=True | anim=idle[0/2] timer=15/45 | idle | powerups: none
+```
+
+Shows:
+- **Frame count** - Game frame number
+- **Position/velocity** - Player physics state
+- **on_ground** - Whether player is standing on a surface
+- **Animation** - Current animation, frame index, and timer progress
+- **Combat state** - attacking, invincible, hurt timers
+- **Power-ups** - Active power-ups with remaining timers
+
+Useful for diagnosing:
+- Animation issues (check if timer progresses, frames change)
+- Physics bugs (velocity, on_ground oscillation)
+- State machine problems (unexpected animation switches)
 
 ## Architecture
 

@@ -74,11 +74,11 @@ class Player(pygame.sprite.Sprite):
 
             # Row 0: Idle (2 frames)
             idle_frames = sheet.get_strip(0, PLAYER_WIDTH, PLAYER_HEIGHT, 2)
-            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=15, loop=True))
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=30, loop=True))
 
             # Row 1: Run (4 frames)
             run_frames = sheet.get_strip(PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT, 4)
-            self.sprite.add_animation("run", Animation(run_frames, frame_duration=6, loop=True))
+            self.sprite.add_animation("run", Animation(run_frames, frame_duration=8, loop=True))
 
             # Row 2: Jump, Fall, Hurt
             jump_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1)
@@ -102,10 +102,10 @@ class Player(pygame.sprite.Sprite):
         brown = (139, 69, 19)
 
         idle_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 2, "idle")
-        self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=15, loop=True))
+        self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=30, loop=True))
 
         run_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 4, "run")
-        self.sprite.add_animation("run", Animation(run_frames, frame_duration=6, loop=True))
+        self.sprite.add_animation("run", Animation(run_frames, frame_duration=8, loop=True))
 
         jump_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 1, "jump")
         self.sprite.add_animation("jump", Animation(jump_frames, frame_duration=1, loop=False))

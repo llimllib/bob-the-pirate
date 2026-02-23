@@ -227,6 +227,21 @@ class Level:
                         player.velocity_y = 0
                         player.on_ground = True
 
+        # If not already on ground, check if standing on a surface (1 pixel probe)
+        if not player.on_ground and player.velocity_y >= 0:
+            probe_rect = pygame.Rect(player.rect.x, player.rect.bottom, player.rect.width, 1)
+            for tile in self.solid_tiles:
+                if probe_rect.colliderect(tile.rect):
+                    player.on_ground = True
+                    player.velocity_y = 0
+                    break
+            if not player.on_ground:
+                for tile in self.platform_tiles:
+                    if probe_rect.colliderect(tile.rect):
+                        player.on_ground = True
+                        player.velocity_y = 0
+                        break
+
     def update(self, player) -> None:
         """Update all level entities."""
         # Update enemies
