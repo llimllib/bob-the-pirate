@@ -3,12 +3,25 @@
 import pygame
 import pytest
 
-from game.enemies import Admiral, AdmiralBullet, Cannon, Cannonball, Officer
+from game.enemies import (
+    Admiral,
+    AdmiralBullet,
+    Bosun,
+    Cannon,
+    Cannonball,
+    MusketBall,
+    Musketeer,
+    Officer,
+    Sailor,
+)
 from game.settings import (
     ADMIRAL_HEALTH,
     ADMIRAL_PHASE_2_THRESHOLD,
     ADMIRAL_PHASE_3_THRESHOLD,
+    BOSUN_HEALTH,
+    MUSKETEER_HEALTH,
     OFFICER_HEALTH,
+    SAILOR_HEALTH,
 )
 
 
@@ -31,6 +44,127 @@ def projectile_group():
 def player_rect():
     """Create a player rect for testing."""
     return pygame.Rect(100, 100, 32, 48)
+
+
+class TestSailor:
+    """Tests for Sailor enemy."""
+
+    def test_sailor_initial_state(self):
+        """Sailor should start with correct health and walking."""
+        sailor = Sailor(100, 100, patrol_distance=100)
+        assert sailor.health == SAILOR_HEALTH
+        assert sailor.velocity_x != 0  # Should be moving
+        assert sailor.sprite is not None
+
+    def test_sailor_has_animations(self):
+        """Sailor should have walk and hurt animations."""
+        sailor = Sailor(100, 100)
+        assert "walk" in sailor.sprite.animations
+        assert "hurt" in sailor.sprite.animations
+
+    def test_sailor_patrols(self):
+        """Sailor should patrol back and forth."""
+        sailor = Sailor(100, 100, patrol_distance=50)
+
+        # Move until past boundary, then sailor should reverse
+        for _ in range(100):
+            sailor.update()
+
+        # Should have reversed direction at some point (velocity should be negative
+        # after overshooting the boundary)
+        assert sailor.velocity_x < 0  # Reversed after hitting boundary
+
+    def test_sailor_hurt_animation_on_damage(self):
+        """Sailor should show hurt animation when damaged."""
+        sailor = Sailor(100, 100)
+        sailor.take_damage(1)
+
+        assert sailor.hurt_timer > 0
+        assert sailor.sprite.current_animation == "hurt"
+
+    def test_sailor_animation_updates(self):
+        """Sailor animation should update each frame."""
+        sailor = Sailor(100, 100)
+        sailor.update()
+        assert sailor.image is not None
+        assert sailor.image.get_width() == 36
+        assert sailor.image.get_height() == 56
+
+
+class TestEnemyHitStun:
+    """Tests for enemy hit stun mechanic."""
+
+    def test_enemy_can_damage_player_initially(self):
+        """Enemy should be able to damage player when not stunned."""
+        sailor = Sailor(100, 100)
+        assert sailor.can_damage_player()
+
+    def test_enemy_stunned_after_taking_damage(self):
+        """Enemy should be stunned after taking damage."""
+        sailor = Sailor(100, 100)
+        sailor.take_damage(0)  # 0 damage to not kill, but still stun
+
+        assert sailor.hit_stun_timer > 0
+        assert not sailor.can_damage_player()
+
+    def test_enemy_stun_wears_off(self):
+        """Enemy stun should wear off after enough frames."""
+        sailor = Sailor(100, 100)
+        sailor.take_damage(0)
+
+        # Run enough updates for stun to wear off
+        for _ in range(35):
+            sailor.update()
+
+        assert sailor.can_damage_player()
+
+
+class TestMusketeer:
+    """Tests for Musketeer enemy."""
+
+    def test_musketeer_initial_state(self, projectile_group):
+        """Musketeer should start with correct health and idle."""
+        musketeer = Musketeer(100, 100, projectile_group)
+        assert musketeer.health == MUSKETEER_HEALTH
+        assert musketeer.sprite is not None
+        assert not musketeer.shooting
+
+    def test_musketeer_has_animations(self, projectile_group):
+        """Musketeer should have idle and shoot animations."""
+        musketeer = Musketeer(100, 100, projectile_group)
+        assert "idle" in musketeer.sprite.animations
+        assert "shoot" in musketeer.sprite.animations
+
+    def test_musketeer_faces_player(self, projectile_group):
+        """Musketeer should face the player."""
+        musketeer = Musketeer(100, 100, projectile_group)
+        player_rect = pygame.Rect(200, 100, 32, 48)
+
+        musketeer.update(player_rect)
+
+        assert musketeer.facing_right  # Player is to the right
+
+    def test_musketeer_shoots_periodically(self, projectile_group):
+        """Musketeer should fire musket balls at regular intervals."""
+        musketeer = Musketeer(100, 100, projectile_group)
+        musketeer.shoot_timer = 1  # About to fire
+        player_rect = pygame.Rect(200, 100, 32, 48)
+
+        musketeer.update(player_rect)
+        assert musketeer.shooting
+
+        # Run through shooting animation
+        for _ in range(musketeer.SHOOT_WIND_UP + musketeer.SHOOT_FOLLOW_THROUGH):
+            musketeer.update(player_rect)
+
+        assert len(projectile_group) == 1
+        assert isinstance(list(projectile_group)[0], MusketBall)
+
+    def test_musketeer_animation_updates(self, projectile_group):
+        """Musketeer animation should update each frame."""
+        musketeer = Musketeer(100, 100, projectile_group)
+        musketeer.update()
+        assert musketeer.image is not None
 
 
 class TestOfficer:
@@ -67,7 +201,7 @@ class TestOfficer:
         assert officer.attack_timer > 0
 
     def test_officer_attack_hitbox_exists_when_attacking(self):
-        """Officer should have attack hitbox only when attacking."""
+        """Officer should have attack hitbox during slash phase of attack."""
         officer = Officer(100, 100)
 
         # Not attacking - no hitbox
@@ -76,27 +210,39 @@ class TestOfficer:
         # Trigger attack
         player_rect = pygame.Rect(110, 100, 32, 48)
         officer.update(player_rect)
+        assert officer.attacking
 
-        # Now attacking - should have hitbox
+        # Run through wind-up phase (first half of attack) - no hitbox yet
+        for _ in range(officer.attack_duration // 2):
+            officer.update(player_rect)
+
+        # Now in slash phase - should have hitbox
         hitbox = officer.get_attack_hitbox()
         assert hitbox is not None
         assert isinstance(hitbox, pygame.Rect)
 
     def test_officer_attack_hitbox_direction(self):
         """Attack hitbox should be on correct side based on facing direction."""
-        officer = Officer(100, 100)
-
         # Attack facing right
+        officer = Officer(100, 100)
         player_rect = pygame.Rect(130, 100, 32, 48)
         officer.update(player_rect)
+        # Run to slash phase
+        for _ in range(officer.attack_duration // 2 + 1):
+            officer.update(player_rect)
         hitbox_right = officer.get_attack_hitbox()
+        assert hitbox_right is not None
         assert hitbox_right.left >= officer.rect.right - 5  # Hitbox to the right
 
-        # Reset and attack facing left
+        # Attack facing left
         officer2 = Officer(200, 100)
         player_rect_left = pygame.Rect(170, 100, 32, 48)
         officer2.update(player_rect_left)
+        # Run to slash phase
+        for _ in range(officer2.attack_duration // 2 + 1):
+            officer2.update(player_rect_left)
         hitbox_left = officer2.get_attack_hitbox()
+        assert hitbox_left is not None
         assert hitbox_left.right <= officer2.rect.left + 5  # Hitbox to the left
 
     def test_officer_respects_attack_cooldown(self):
@@ -126,6 +272,22 @@ class TestOfficer:
 
         assert officer.rect.x == initial_x  # Didn't move
 
+    def test_officer_has_animations(self):
+        """Officer should have walk, idle, and attack animations."""
+        officer = Officer(100, 100)
+        assert "walk" in officer.sprite.animations
+        assert "idle" in officer.sprite.animations
+        assert "attack" in officer.sprite.animations
+
+    def test_officer_animation_updates(self):
+        """Officer animation should update each frame."""
+        officer = Officer(100, 100)
+        player_rect = pygame.Rect(200, 100, 32, 48)
+        officer.update(player_rect)
+        assert officer.image is not None
+        assert officer.image.get_width() >= 40
+        assert officer.image.get_height() == 60
+
 
 class TestCannon:
     """Tests for Cannon enemy."""
@@ -142,7 +304,15 @@ class TestCannon:
         cannon = Cannon(100, 100, projectile_group, faces_right=True)
         cannon.shoot_timer = 1  # About to fire
 
+        # First update starts the firing animation
         cannon.update()
+        assert cannon.firing
+
+        # Run through firing animation until projectile is spawned
+        for _ in range(cannon.FIRE_DURATION):
+            cannon.update()
+            if len(projectile_group) > 0:
+                break
 
         assert len(projectile_group) == 1
         assert isinstance(list(projectile_group)[0], Cannonball)
@@ -152,7 +322,9 @@ class TestCannon:
         # Right-facing cannon
         cannon_right = Cannon(100, 100, projectile_group, faces_right=True)
         cannon_right.shoot_timer = 1
-        cannon_right.update()
+        # Run through firing animation
+        for _ in range(cannon_right.FIRE_DURATION + 1):
+            cannon_right.update()
 
         cannonball = list(projectile_group)[0]
         assert cannonball.velocity_x > 0  # Moving right
@@ -161,7 +333,9 @@ class TestCannon:
         projectile_group.empty()
         cannon_left = Cannon(100, 100, projectile_group, faces_right=False)
         cannon_left.shoot_timer = 1
-        cannon_left.update()
+        # Run through firing animation
+        for _ in range(cannon_left.FIRE_DURATION + 1):
+            cannon_left.update()
 
         cannonball = list(projectile_group)[0]
         assert cannonball.velocity_x < 0  # Moving left
@@ -170,7 +344,9 @@ class TestCannon:
         """Cannonball should arc downward due to gravity."""
         cannon = Cannon(100, 100, projectile_group, faces_right=True)
         cannon.shoot_timer = 1
-        cannon.update()
+        # Run through firing animation
+        for _ in range(cannon.FIRE_DURATION + 1):
+            cannon.update()
 
         cannonball = list(projectile_group)[0]
         initial_vy = cannonball.velocity_y
@@ -181,6 +357,119 @@ class TestCannon:
 
         # Velocity should have increased (more downward)
         assert cannonball.velocity_y > initial_vy
+
+    def test_cannon_has_animations(self, projectile_group):
+        """Cannon should have static and fire animations."""
+        cannon = Cannon(100, 100, projectile_group)
+        assert "static" in cannon.sprite.animations
+        assert "fire" in cannon.sprite.animations
+
+    def test_cannon_firing_animation(self, projectile_group):
+        """Cannon should play fire animation when shooting."""
+        cannon = Cannon(100, 100, projectile_group)
+        cannon.shoot_timer = 1
+
+        cannon.update()  # Start firing
+
+        assert cannon.firing
+        assert cannon.sprite.current_animation == "fire"
+
+    def test_cannon_animation_updates(self, projectile_group):
+        """Cannon animation should update each frame."""
+        cannon = Cannon(100, 100, projectile_group)
+        cannon.update()
+        assert cannon.image is not None
+
+
+class TestBosun:
+    """Tests for Bosun miniboss."""
+
+    def test_bosun_initial_state(self):
+        """Bosun should start with correct health and idle state."""
+        bosun = Bosun(100, 100)
+        assert bosun.health == BOSUN_HEALTH
+        assert bosun.state == Bosun.STATE_IDLE
+
+    def test_bosun_has_health_bar(self):
+        """Bosun should have max_health set."""
+        bosun = Bosun(100, 100)
+        assert bosun.max_health == BOSUN_HEALTH
+
+    def test_bosun_can_set_arena_bounds(self):
+        """Bosun arena bounds should be settable."""
+        bosun = Bosun(100, 100)
+        bosun.set_arena_bounds(50, 500)
+        assert bosun.arena_left == 50
+        assert bosun.arena_right == 500
+
+    def test_bosun_whip_attack_hitbox(self):
+        """Bosun should have hitbox during whip attack."""
+        bosun = Bosun(100, 100)
+        bosun.state = Bosun.STATE_WHIP_ATTACK
+        bosun.state_timer = 15  # Mid-attack
+
+        hitbox = bosun.get_attack_hitbox()
+        assert hitbox is not None
+        assert hitbox.width == 50  # Whip reach
+
+    def test_bosun_stomp_hitbox(self):
+        """Bosun stomp should create wide shockwave hitbox."""
+        bosun = Bosun(100, 100)
+        bosun.state = Bosun.STATE_STOMP
+        bosun.state_timer = 20  # Mid-stomp
+
+        hitbox = bosun.get_attack_hitbox()
+        assert hitbox is not None
+        assert hitbox.width == 160  # Wide shockwave
+
+    def test_bosun_charge_hitbox(self):
+        """Bosun should have hitbox during charge."""
+        bosun = Bosun(100, 100)
+        bosun.state = Bosun.STATE_CHARGE
+        bosun.state_timer = 30
+
+        hitbox = bosun.get_attack_hitbox()
+        assert hitbox is not None
+
+    def test_bosun_stomp_does_more_damage(self):
+        """Bosun stomp should do more damage than regular attacks."""
+        bosun = Bosun(100, 100)
+
+        bosun.state = Bosun.STATE_WHIP_ATTACK
+        whip_damage = bosun.get_attack_damage()
+
+        bosun.state = Bosun.STATE_STOMP
+        stomp_damage = bosun.get_attack_damage()
+
+        assert stomp_damage > whip_damage
+
+    def test_bosun_stunned_on_damage(self):
+        """Bosun should be briefly stunned when hit."""
+        bosun = Bosun(100, 100)
+        bosun.state = Bosun.STATE_WALK
+
+        bosun.take_damage(1)
+
+        assert bosun.state == Bosun.STATE_STUNNED
+        assert bosun.damage_flash > 0
+
+    def test_bosun_updates_state_machine(self):
+        """Bosun should transition between states."""
+        bosun = Bosun(100, 100)
+        player_rect = pygame.Rect(200, 100, 32, 48)
+        states_seen = set()
+
+        # Run simulation
+        for i in range(500):
+            bosun.update(player_rect)
+            states_seen.add(bosun.state)
+            # Reset timers to force transitions
+            if i % 50 == 0:
+                bosun.attack_cooldown = 0
+                bosun.state_timer = 0
+
+        # Should see multiple states
+        assert len(states_seen) >= 2
 
 
 class TestAdmiral:

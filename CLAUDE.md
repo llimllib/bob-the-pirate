@@ -63,7 +63,7 @@ Useful for diagnosing:
 - **`game/game.py`** - Main game loop, state machine (MENU, PLAYING, PAUSED, GAME_OVER, LEVEL_COMPLETE, BOSS_DEFEATED)
 - **`game/settings.py`** - All constants (speeds, sizes, colors, timings)
 - **`game/player.py`** - Player class with movement, combat, health, power-up states
-- **`game/enemies.py`** - Enemy classes: Sailor, Musketeer, Officer, Cannon, Admiral (boss) + projectiles
+- **`game/enemies.py`** - Enemy classes: Sailor, Musketeer, Officer, Cannon, Bosun (miniboss), Admiral (boss) + projectiles
 - **`game/level.py`** - Level loading from JSON, tile collision (solid + one-way platforms), entity management
 - **`game/collectibles.py`** - TreasureChest, Coin, RumBottle, PirateFlag, LootChest, ExitDoor
 - **`game/powerups.py`** - Parrot companion, GhostShield power-up entities
@@ -93,7 +93,7 @@ Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 - `width`, `height` - Level dimensions in pixels
 - `is_boss_level` - (optional) true for boss arenas
 - `tiles[]` - x,y grid positions (multiplied by TILE_SIZE), type: "solid", "platform", "decoration"
-- `enemies[]` - type (sailor/musketeer/officer/cannon/admiral), position, optional params (patrol_distance, faces_right, arena_left, arena_right)
+- `enemies[]` - type (sailor/musketeer/officer/cannon/bosun/admiral), position, optional params (patrol_distance, faces_right, arena_left, arena_right)
 - `collectibles[]` - type (treasure/coin/rum/flag/loot), position, optional powerup type for loot chests
 - `player_start` - [x, y] spawn point
 - `exit` - {x, y} level exit position (not needed for boss levels)
@@ -107,9 +107,17 @@ Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 
 See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap.
 
-**Current Status**: Phases 1-7 complete. Full gameplay loop with boss fight working.
+**Current Status**: Phases 1-9 complete. Full gameplay with 6 levels, miniboss, and final boss.
 
-**Next Up**: Phase 8 - Complete Levels (design 4 themed levels with progression)
+**Levels Available**:
+1. Port Town (Tutorial)
+2. HMS Revenge (Ship)
+3. Cliff Fortress (Vertical)
+4. The Armory (Miniboss - Bosun)
+5. Governor's Mansion (Challenge)
+6. Admiral's Quarters (Final Boss)
+
+**Next Up**: Phase 10 - Menus & UI Polish
 
 ## Code Conventions
 

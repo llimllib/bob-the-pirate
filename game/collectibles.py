@@ -2,16 +2,16 @@
 
 import pygame
 
-from game.settings import CHEST_POINTS, COIN_VALUE, PARROT_DURATION, TILE_SIZE, WHITE, YELLOW
+from game.collectible_sprites import get_collectible_sprites
+from game.settings import CHEST_POINTS, COIN_VALUE, PARROT_DURATION
 
 
 class Collectible(pygame.sprite.Sprite):
     """Base class for collectible items."""
 
-    def __init__(self, x: int, y: int, width: int, height: int, color: tuple):
+    def __init__(self, x: int, y: int, width: int, height: int):
         super().__init__()
-        self.image = pygame.Surface((width, height))
-        self.image.fill(color)
+        self.image = pygame.Surface((width, height), pygame.SRCALPHA)
         self.rect = self.image.get_rect(topleft=(x, y))
         self.collected = False
 
@@ -25,6 +25,10 @@ class Collectible(pygame.sprite.Sprite):
         self.kill()
         return {}
 
+    def update(self) -> None:
+        """Update the collectible (for animations)."""
+        pass
+
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the collectible."""
         if self.collected:
@@ -37,10 +41,11 @@ class TreasureChest(Collectible):
     """Required collectible - get all to complete level."""
 
     def __init__(self, x: int, y: int):
-        super().__init__(x, y, TILE_SIZE, TILE_SIZE - 8, (139, 69, 19))
-        # Draw chest details
-        pygame.draw.rect(self.image, YELLOW, (4, 4, TILE_SIZE - 8, TILE_SIZE - 16))
-        pygame.draw.rect(self.image, (100, 50, 0), (0, 0, TILE_SIZE, TILE_SIZE - 8), 2)
+        super().__init__(x, y, 32, 24)
+        sprites = get_collectible_sprites()
+        self.image = sprites.get("treasure_chest")
+        # Adjust rect to match sprite size
+        self.rect = self.image.get_rect(topleft=(x, y))
 
     def collect(self, player) -> dict:
         """Collect treasure chest."""
@@ -52,15 +57,19 @@ class TreasureChest(Collectible):
 
 
 class Coin(Collectible):
-    """Gold coin for score."""
+    """Gold coin for score - animated spinning."""
 
     def __init__(self, x: int, y: int):
-        super().__init__(x, y, 16, 16, YELLOW)
-        # Make it circular-ish
-        self.image.fill((0, 0, 0, 0))
-        self.image.set_colorkey((0, 0, 0))
-        pygame.draw.circle(self.image, YELLOW, (8, 8), 8)
-        pygame.draw.circle(self.image, (200, 180, 0), (8, 8), 6)
+        super().__init__(x, y, 16, 16)
+        sprites = get_collectible_sprites()
+        self.animation = sprites.get_coin_animation(frame_duration=8)
+        self.image = self.animation.get_frame()
+        self.rect = self.image.get_rect(topleft=(x, y))
+
+    def update(self) -> None:
+        """Update coin spinning animation."""
+        self.animation.update()
+        self.image = self.animation.get_frame()
 
     def collect(self, player) -> dict:
         """Collect coin."""
@@ -75,10 +84,10 @@ class RumBottle(Collectible):
     """Health restore item."""
 
     def __init__(self, x: int, y: int):
-        super().__init__(x, y, 12, 20, (100, 60, 40))
-        # Draw bottle shape
-        pygame.draw.rect(self.image, (150, 80, 50), (2, 0, 8, 16))
-        pygame.draw.rect(self.image, (80, 40, 20), (4, 16, 4, 4))
+        super().__init__(x, y, 12, 20)
+        sprites = get_collectible_sprites()
+        self.image = sprites.get("rum_bottle")
+        self.rect = self.image.get_rect(topleft=(x, y))
 
     def collect(self, player) -> dict:
         """Restore health."""
@@ -94,12 +103,10 @@ class PirateFlag(Collectible):
     """Extra life."""
 
     def __init__(self, x: int, y: int):
-        super().__init__(x, y, 24, 32, (0, 0, 0))
-        # Draw flag
-        pygame.draw.rect(self.image, WHITE, (0, 0, 20, 24))
-        pygame.draw.rect(self.image, (0, 0, 0), (20, 0, 4, 32))
-        # Skull (simplified)
-        pygame.draw.circle(self.image, (0, 0, 0), (10, 10), 6)
+        super().__init__(x, y, 24, 32)
+        sprites = get_collectible_sprites()
+        self.image = sprites.get("pirate_flag")
+        self.rect = self.image.get_rect(topleft=(x, y))
 
     def collect(self, player) -> dict:
         """Grant extra life."""
@@ -115,11 +122,11 @@ class LootChest(Collectible):
     """Special chest that contains power-ups."""
 
     def __init__(self, x: int, y: int, powerup_type: str = "parrot"):
-        super().__init__(x, y, TILE_SIZE, TILE_SIZE - 8, (139, 69, 19))
+        super().__init__(x, y, 32, 24)
         self.powerup_type = powerup_type
-        # Draw special chest (golden)
-        pygame.draw.rect(self.image, (255, 215, 0), (4, 4, TILE_SIZE - 8, TILE_SIZE - 16))
-        pygame.draw.rect(self.image, (200, 150, 0), (0, 0, TILE_SIZE, TILE_SIZE - 8), 3)
+        sprites = get_collectible_sprites()
+        self.image = sprites.get("loot_chest")
+        self.rect = self.image.get_rect(topleft=(x, y))
 
     def collect(self, player) -> dict:
         """Grant power-up to player."""
@@ -146,19 +153,17 @@ class ExitDoor(pygame.sprite.Sprite):
 
     def __init__(self, x: int, y: int):
         super().__init__()
-        self.image = pygame.Surface((TILE_SIZE, TILE_SIZE * 2))
+        self.sprites = get_collectible_sprites()
+        self.image = self.sprites.get("exit_door_locked")
         self.rect = self.image.get_rect(topleft=(x, y))
         self.locked = True
-        self._update_appearance()
 
     def _update_appearance(self) -> None:
         """Update visual based on locked state."""
         if self.locked:
-            self.image.fill((100, 100, 100))
-            pygame.draw.rect(self.image, (60, 60, 60), (4, 4, TILE_SIZE - 8, TILE_SIZE * 2 - 8), 2)
+            self.image = self.sprites.get("exit_door_locked")
         else:
-            self.image.fill((0, 200, 0))
-            pygame.draw.rect(self.image, (0, 150, 0), (4, 4, TILE_SIZE - 8, TILE_SIZE * 2 - 8), 2)
+            self.image = self.sprites.get("exit_door_unlocked")
 
     def unlock(self) -> None:
         """Unlock the exit."""

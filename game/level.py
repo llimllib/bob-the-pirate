@@ -176,7 +176,7 @@ class Level:
             RumBottle,
             TreasureChest,
         )
-        from game.enemies import Admiral, Cannon, Musketeer, Officer, Sailor
+        from game.enemies import Admiral, Bosun, Cannon, Musketeer, Officer, Sailor
 
         with open(filepath, 'r') as f:
             data = json.load(f)
@@ -248,6 +248,12 @@ class Level:
                 arena_right = enemy_data.get("arena_right", x + 200)
                 enemy.set_arena_bounds(arena_left, arena_right)
                 self.boss = enemy
+            elif enemy_type == "bosun":
+                enemy = Bosun(x, y)
+                # Set arena bounds if specified
+                arena_left = enemy_data.get("arena_left", x - 150)
+                arena_right = enemy_data.get("arena_right", x + 150)
+                enemy.set_arena_bounds(arena_left, arena_right)
             else:
                 continue
 
@@ -388,6 +394,10 @@ class Level:
                 projectile.rect.left > self.width or
                 projectile.rect.top > self.height):
                 projectile.kill()
+
+        # Update collectibles (for animations like spinning coins)
+        for item in self.collectibles:
+            item.update()
 
         # Check if all treasure collected
         if self.treasure_collected >= self.treasure_total and self.exit_door:

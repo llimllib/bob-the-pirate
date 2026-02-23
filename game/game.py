@@ -61,7 +61,10 @@ class Game:
         self.available_levels = [
             ("levels/level1.json", "1 - Port Town"),
             ("levels/level2.json", "2 - HMS Revenge"),
-            ("levels/boss_arena.json", "B - Boss Arena"),
+            ("levels/level3.json", "3 - Cliff Fortress"),
+            ("levels/level4.json", "4 - The Armory (Miniboss)"),
+            ("levels/level5.json", "5 - Governor's Mansion"),
+            ("levels/boss_arena.json", "B - Admiral's Quarters (Boss)"),
         ]
         self.selected_level = 0
 
@@ -240,6 +243,10 @@ class Game:
 
         # Check enemy collisions
         for enemy in self.level.enemies:
+            # Skip damage if enemy was recently hit (stunned)
+            if not enemy.can_damage_player():
+                continue
+
             if self.player.rect.colliderect(enemy.rect):
                 if self._try_damage_player(1):
                     pass  # Damage was applied or blocked
@@ -249,6 +256,13 @@ class Game:
                 attack_box = enemy.get_attack_hitbox()
                 if attack_box and self.player.rect.colliderect(attack_box):
                     self._try_damage_player(1)
+
+            # Check Bosun attacks (miniboss with variable damage)
+            if hasattr(enemy, 'get_attack_hitbox') and hasattr(enemy, 'get_attack_damage'):
+                attack_box = enemy.get_attack_hitbox()
+                if attack_box and self.player.rect.colliderect(attack_box):
+                    damage = enemy.get_attack_damage()
+                    self._try_damage_player(damage)
 
         # Check boss-specific attacks and death
         if self.level.boss:

@@ -19,6 +19,13 @@ from game.settings import (
     ADMIRAL_SWORD_FRAME_WIDTH,
     ADMIRAL_WIDTH,
     BLUE,
+    BOSUN_ATTACK_COOLDOWN,
+    BOSUN_CHARGE_SPEED,
+    BOSUN_HEALTH,
+    BOSUN_HEIGHT,
+    BOSUN_SPEED,
+    BOSUN_STOMP_DAMAGE,
+    BOSUN_WIDTH,
     CANNON_SHOOT_COOLDOWN,
     CANNONBALL_GRAVITY,
     CANNONBALL_SPEED,
@@ -29,10 +36,45 @@ from game.settings import (
     PROJECTILE_SPEED,
     SAILOR_HEALTH,
     SAILOR_SPEED,
-    TILE_SIZE,
     WHITE,
     YELLOW,
 )
+
+# Enemy sprite dimensions (larger for better visibility)
+SAILOR_WIDTH = 36
+SAILOR_HEIGHT = 56
+MUSKETEER_WIDTH = 36
+MUSKETEER_HEIGHT = 56
+OFFICER_WIDTH = 40
+OFFICER_HEIGHT = 60
+CANNON_SIZE = 40
+
+# Stun duration after being hit (prevents enemy from damaging player)
+ENEMY_HIT_STUN_FRAMES = 30  # 0.5 seconds at 60 FPS
+
+# Sprite sheet layout info
+ENEMIES_SPRITE_PATH = "assets/sprites/enemies.png"
+PROJECTILES_SPRITE_PATH = "assets/sprites/projectiles.png"
+
+# Cached sprite sheet
+_enemy_sheet: SpriteSheet | None = None
+_projectile_sheet: SpriteSheet | None = None
+
+
+def get_enemy_sheet() -> SpriteSheet | None:
+    """Get cached enemy sprite sheet, loading if necessary."""
+    global _enemy_sheet
+    if _enemy_sheet is None and os.path.exists(ENEMIES_SPRITE_PATH):
+        _enemy_sheet = SpriteSheet(ENEMIES_SPRITE_PATH)
+    return _enemy_sheet
+
+
+def get_projectile_sheet() -> SpriteSheet | None:
+    """Get cached projectile sprite sheet, loading if necessary."""
+    global _projectile_sheet
+    if _projectile_sheet is None and os.path.exists(PROJECTILES_SPRITE_PATH):
+        _projectile_sheet = SpriteSheet(PROJECTILES_SPRITE_PATH)
+    return _projectile_sheet
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -51,13 +93,26 @@ class Enemy(pygame.sprite.Sprite):
         self.facing_right = True
         self.active = True
 
+        # Stun timer - when > 0, enemy cannot damage the player
+        self.hit_stun_timer = 0
+
     def take_damage(self, amount: int = 1) -> bool:
         """Take damage. Returns True if enemy died."""
         self.health -= amount
+        self.hit_stun_timer = ENEMY_HIT_STUN_FRAMES  # Stun on hit
         if self.health <= 0:
             self.die()
             return True
         return False
+
+    def can_damage_player(self) -> bool:
+        """Check if enemy can currently damage the player."""
+        return self.hit_stun_timer <= 0
+
+    def update_stun(self) -> None:
+        """Update stun timer. Call this in subclass update methods."""
+        if self.hit_stun_timer > 0:
+            self.hit_stun_timer -= 1
 
     def die(self) -> None:
         """Handle enemy death."""
@@ -80,13 +135,54 @@ class Sailor(Enemy):
     """Basic patrol enemy - walks back and forth."""
 
     def __init__(self, x: int, y: int, patrol_distance: int = 100):
-        super().__init__(x, y, 28, 44, SAILOR_HEALTH, BLUE)
+        super().__init__(x, y, SAILOR_WIDTH, SAILOR_HEIGHT, SAILOR_HEALTH, BLUE)
         self.start_x = x
         self.patrol_distance = patrol_distance
         self.velocity_x = SAILOR_SPEED
 
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("walk")
+
+        # Hurt state
+        self.hurt_timer = 0
+
+    def _load_animations(self) -> None:
+        """Load Sailor animations from sprite sheet or use placeholders."""
+        sheet = get_enemy_sheet()
+
+        if sheet:
+            # Row 0: Walk (2 frames @ 28px), Hurt (1 frame @ 28px)
+            walk_frames = sheet.get_strip(0, SAILOR_WIDTH, SAILOR_HEIGHT, 2)
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
+
+            hurt_frames = sheet.get_strip(0, SAILOR_WIDTH, SAILOR_HEIGHT, 1, x_start=SAILOR_WIDTH * 2)
+            self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=1, loop=False))
+        else:
+            # Placeholder animations
+            walk_frames = create_placeholder_frames(SAILOR_WIDTH, SAILOR_HEIGHT, BLUE, 2, "walk")
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
+
+            hurt_frames = create_placeholder_frames(SAILOR_WIDTH, SAILOR_HEIGHT, (100, 100, 200), 1, "hurt")
+            self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=1, loop=False))
+
+    def take_damage(self, amount: int = 1) -> bool:
+        """Take damage with hurt animation."""
+        self.hurt_timer = 15
+        self.sprite.play("hurt", force_restart=True)
+        return super().take_damage(amount)
+
     def update(self, player_rect: pygame.Rect = None) -> None:
         """Patrol back and forth."""
+        self.update_stun()
+
+        # Update hurt timer
+        if self.hurt_timer > 0:
+            self.hurt_timer -= 1
+            if self.hurt_timer <= 0:
+                self.sprite.play("walk")
+
         self.rect.x += self.velocity_x
 
         # Reverse at patrol boundaries
@@ -97,27 +193,99 @@ class Sailor(Enemy):
             self.velocity_x = SAILOR_SPEED
             self.facing_right = True
 
+        # Update animation
+        self.sprite.facing_right = self.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
 
 class Musketeer(Enemy):
     """Ranged enemy - stands still and shoots."""
 
+    # Shooting animation timing
+    SHOOT_WIND_UP = 20  # Frames before firing
+    SHOOT_FOLLOW_THROUGH = 15  # Frames after firing
+
     def __init__(self, x: int, y: int, projectile_group: pygame.sprite.Group):
-        super().__init__(x, y, 28, 44, MUSKETEER_HEALTH, (150, 0, 0))
+        super().__init__(x, y, MUSKETEER_WIDTH, MUSKETEER_HEIGHT, MUSKETEER_HEALTH, (150, 0, 0))
         self.projectile_group = projectile_group
         self.shoot_cooldown = MUSKETEER_SHOOT_COOLDOWN
         self.shoot_timer = self.shoot_cooldown
 
+        # Shooting state
+        self.shooting = False
+        self.shoot_anim_timer = 0
+        self.fired_shot = False
+
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("idle")
+
+    def _load_animations(self) -> None:
+        """Load Musketeer animations from sprite sheet or use placeholders."""
+        sheet = get_enemy_sheet()
+
+        if sheet:
+            # Row 1 (y=44): Idle (28px), Shoot frame 0 (28px), Shoot frame 1 with flash (36px)
+            row_y = SAILOR_HEIGHT  # Row 1 starts after sailor row
+
+            idle_frames = sheet.get_strip(row_y, MUSKETEER_WIDTH, MUSKETEER_HEIGHT, 1)
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=1, loop=False))
+
+            # Shoot animation: aim then fire with flash (10px wider)
+            shoot_flash_width = MUSKETEER_WIDTH + 10
+            shoot_frame_0 = sheet.get_frame(MUSKETEER_WIDTH, row_y, MUSKETEER_WIDTH, MUSKETEER_HEIGHT)
+            shoot_frame_1 = sheet.get_frame(MUSKETEER_WIDTH * 2, row_y, shoot_flash_width, MUSKETEER_HEIGHT)
+            shoot_frames = [shoot_frame_0, shoot_frame_1]
+            self.sprite.add_animation("shoot", Animation(shoot_frames, frame_duration=15, loop=False))
+        else:
+            # Placeholder animations
+            idle_frames = create_placeholder_frames(MUSKETEER_WIDTH, MUSKETEER_HEIGHT, (150, 0, 0), 1, "idle")
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=1, loop=False))
+
+            shoot_frames = create_placeholder_frames(MUSKETEER_WIDTH, MUSKETEER_HEIGHT, (200, 50, 0), 2, "shoot")
+            self.sprite.add_animation("shoot", Animation(shoot_frames, frame_duration=15, loop=False))
+
     def update(self, player_rect: pygame.Rect = None) -> None:
         """Face player and shoot periodically."""
+        self.update_stun()
+
         if player_rect:
             self.facing_right = player_rect.centerx > self.rect.centerx
 
-        self.shoot_timer -= 1
-        if self.shoot_timer <= 0:
-            self.shoot()
-            self.shoot_timer = self.shoot_cooldown
+        # Handle shooting animation state
+        if self.shooting:
+            self.shoot_anim_timer -= 1
+
+            # Fire the actual projectile at the right moment
+            if not self.fired_shot and self.shoot_anim_timer <= self.SHOOT_FOLLOW_THROUGH:
+                self._fire_projectile()
+                self.fired_shot = True
+
+            # End shooting animation
+            if self.shoot_anim_timer <= 0:
+                self.shooting = False
+                self.sprite.play("idle")
+        else:
+            self.shoot_timer -= 1
+            if self.shoot_timer <= 0:
+                self.shoot()
+                self.shoot_timer = self.shoot_cooldown
+
+        # Update animation
+        self.sprite.facing_right = self.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
 
     def shoot(self) -> None:
+        """Start shooting animation."""
+        self.shooting = True
+        self.shoot_anim_timer = self.SHOOT_WIND_UP + self.SHOOT_FOLLOW_THROUGH
+        self.fired_shot = False
+        self.sprite.play("shoot", force_restart=True)
+
+    def _fire_projectile(self) -> None:
         """Fire a musket ball."""
         direction = 1 if self.facing_right else -1
         ball = MusketBall(
@@ -127,12 +295,33 @@ class Musketeer(Enemy):
         )
         self.projectile_group.add(ball)
 
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw musketeer, handling wider shooting sprite."""
+        if not self.active:
+            return
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        frame = self.sprite.get_frame()
+
+        # Handle wider shooting sprite offset when facing left
+        if self.shooting and frame.get_width() > MUSKETEER_WIDTH:
+            extra_width = frame.get_width() - MUSKETEER_WIDTH
+            if not self.facing_right:
+                draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
 
 class Officer(Enemy):
     """Aggressive enemy - chases and attacks player with sword."""
 
+    # Attack frame widths: wind-up (32px), slash (48px)
+    ATTACK_FRAME_WIDTHS = [32, 48]
+
     def __init__(self, x: int, y: int):
-        super().__init__(x, y, 32, 48, OFFICER_HEALTH, (0, 0, 150))
+        super().__init__(x, y, OFFICER_WIDTH, OFFICER_HEIGHT, OFFICER_HEALTH, (0, 0, 150))
         self.chase_range = 250
         self.attack_range = 45
         self.attacking = False
@@ -141,8 +330,47 @@ class Officer(Enemy):
         self.attack_duration = 20
         self.cooldown_duration = 40
 
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("walk")
+
+    def _load_animations(self) -> None:
+        """Load Officer animations from sprite sheet or use placeholders."""
+        sheet = get_enemy_sheet()
+
+        if sheet:
+            # Row 2 (y=88): Walk (2 frames @ 32px), Attack wind-up (32px), Attack slash (48px)
+            row_y = SAILOR_HEIGHT + MUSKETEER_HEIGHT  # Row 2
+
+            walk_frames = sheet.get_strip(row_y, OFFICER_WIDTH, OFFICER_HEIGHT, 2)
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
+
+            # Attack frames: wind-up + slash (20px wider for sword)
+            attack_slash_width = OFFICER_WIDTH + 20
+            attack_frame_0 = sheet.get_frame(OFFICER_WIDTH * 2, row_y, OFFICER_WIDTH, OFFICER_HEIGHT)
+            attack_frame_1 = sheet.get_frame(OFFICER_WIDTH * 3, row_y, attack_slash_width, OFFICER_HEIGHT)
+            attack_frames = [attack_frame_0, attack_frame_1]
+            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=10, loop=False))
+
+            # Idle uses first walk frame
+            idle_frames = [walk_frames[0]]
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=1, loop=False))
+        else:
+            # Placeholder animations
+            walk_frames = create_placeholder_frames(OFFICER_WIDTH, OFFICER_HEIGHT, (0, 0, 150), 2, "walk")
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
+
+            attack_frames = create_placeholder_frames(OFFICER_WIDTH, OFFICER_HEIGHT, (100, 0, 200), 2, "attack")
+            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=10, loop=False))
+
+            idle_frames = [walk_frames[0]]
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=1, loop=False))
+
     def update(self, player_rect: pygame.Rect = None) -> None:
         """Chase player if in range, attack when close."""
+        self.update_stun()
+
         if not player_rect:
             return
 
@@ -152,6 +380,7 @@ class Officer(Enemy):
             if self.attack_timer <= 0:
                 self.attacking = False
                 self.attack_cooldown = self.cooldown_duration
+                self.sprite.play("idle")
         elif self.attack_cooldown > 0:
             self.attack_cooldown -= 1
 
@@ -165,6 +394,9 @@ class Officer(Enemy):
         # Only chase if player is roughly at same height
         if distance_y > 100:
             self.velocity_x = 0
+            if not self.attacking:
+                self.sprite.play("idle")
+            self._update_animation()
             return
 
         if distance < self.attack_range and not self.attacking and self.attack_cooldown <= 0:
@@ -172,6 +404,7 @@ class Officer(Enemy):
             self.attacking = True
             self.attack_timer = self.attack_duration
             self.velocity_x = 0
+            self.sprite.play("attack", force_restart=True)
         elif distance < self.chase_range and distance > self.attack_range - 10:
             # Chase player
             if distance_x > 0:
@@ -179,12 +412,28 @@ class Officer(Enemy):
             else:
                 self.velocity_x = -OFFICER_SPEED
             self.rect.x += self.velocity_x
+            if not self.attacking:
+                self.sprite.play("walk")
         else:
             self.velocity_x = 0
+            if not self.attacking:
+                self.sprite.play("idle")
 
-    def get_attack_hitbox(self) -> pygame.Rect:
+        self._update_animation()
+
+    def _update_animation(self) -> None:
+        """Update animation state."""
+        self.sprite.facing_right = self.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
+    def get_attack_hitbox(self) -> pygame.Rect | None:
         """Get the attack hitbox when attacking."""
         if not self.attacking:
+            return None
+
+        # Only active during the slash frame (second half of attack)
+        if self.attack_timer > self.attack_duration // 2:
             return None
 
         if self.facing_right:
@@ -193,12 +442,24 @@ class Officer(Enemy):
             return pygame.Rect(self.rect.left - 35, self.rect.top + 10, 35, 30)
 
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
-        """Draw the officer with attack indicator."""
+        """Draw the officer with attack animation and indicator."""
         if not self.active:
             return
-        super().draw(surface, camera_offset)
 
-        # Draw attack effect
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        frame = self.sprite.get_frame()
+
+        # Handle wider attack sprite offset when facing left
+        if self.attacking and frame.get_width() > OFFICER_WIDTH:
+            extra_width = frame.get_width() - OFFICER_WIDTH
+            if not self.facing_right:
+                draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
+        # Draw attack effect indicator
         if self.attacking:
             attack_box = self.get_attack_hitbox()
             if attack_box:
@@ -209,33 +470,88 @@ class Officer(Enemy):
 class Cannon(Enemy):
     """Stationary cannon that fires arcing cannonballs."""
 
+    # Firing animation timing
+    FIRE_DURATION = 20
+
     def __init__(self, x: int, y: int, projectile_group: pygame.sprite.Group, faces_right: bool = True):
-        super().__init__(x, y, TILE_SIZE, TILE_SIZE, 2, (50, 50, 50))
+        super().__init__(x, y, CANNON_SIZE, CANNON_SIZE, 2, (50, 50, 50))
         self.projectile_group = projectile_group
         self.faces_right = faces_right
         self.facing_right = faces_right
         self.shoot_cooldown = CANNON_SHOOT_COOLDOWN
         self.shoot_timer = self.shoot_cooldown
-        # Add visual indicator for direction
-        self._draw_barrel()
 
-    def _draw_barrel(self) -> None:
-        """Draw cannon with barrel direction."""
-        self.image.fill((50, 50, 50))
-        # Draw barrel
-        if self.faces_right:
-            pygame.draw.rect(self.image, (30, 30, 30), (TILE_SIZE - 12, 8, 12, 16))
+        # Firing animation state
+        self.firing = False
+        self.fire_timer = 0
+        self.fired_shot = False
+
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("static")
+
+    def _load_animations(self) -> None:
+        """Load Cannon animations from sprite sheet or use placeholders."""
+        sheet = get_enemy_sheet()
+
+        if sheet:
+            # Row 3 (y=136): Static (32px), Fire frame 0 (40px), Fire frame 1 (40px)
+            row_y = SAILOR_HEIGHT + MUSKETEER_HEIGHT + OFFICER_HEIGHT  # Row 3
+
+            static_frames = sheet.get_strip(row_y, CANNON_SIZE, CANNON_SIZE, 1)
+            self.sprite.add_animation("static", Animation(static_frames, frame_duration=1, loop=False))
+
+            # Fire animation (wider frames with effects, 10px wider)
+            fire_width = CANNON_SIZE + 10
+            fire_frame_0 = sheet.get_frame(CANNON_SIZE, row_y, fire_width, CANNON_SIZE)
+            fire_frame_1 = sheet.get_frame(CANNON_SIZE + fire_width, row_y, fire_width, CANNON_SIZE)
+            fire_frames = [fire_frame_0, fire_frame_1]
+            self.sprite.add_animation("fire", Animation(fire_frames, frame_duration=10, loop=False))
         else:
-            pygame.draw.rect(self.image, (30, 30, 30), (0, 8, 12, 16))
+            # Placeholder animations
+            static_frames = create_placeholder_frames(CANNON_SIZE, CANNON_SIZE, (50, 50, 50), 1, "static")
+            self.sprite.add_animation("static", Animation(static_frames, frame_duration=1, loop=False))
+
+            fire_frames = create_placeholder_frames(CANNON_SIZE, CANNON_SIZE, (100, 50, 0), 2, "fire")
+            self.sprite.add_animation("fire", Animation(fire_frames, frame_duration=10, loop=False))
 
     def update(self, player_rect: pygame.Rect = None) -> None:
         """Fire cannonballs periodically."""
-        self.shoot_timer -= 1
-        if self.shoot_timer <= 0:
-            self.shoot()
-            self.shoot_timer = self.shoot_cooldown
+        self.update_stun()
+
+        # Handle firing animation
+        if self.firing:
+            self.fire_timer -= 1
+
+            # Fire the actual projectile at the start
+            if not self.fired_shot and self.fire_timer == self.FIRE_DURATION - 2:
+                self._fire_projectile()
+                self.fired_shot = True
+
+            # End firing animation
+            if self.fire_timer <= 0:
+                self.firing = False
+                self.sprite.play("static")
+        else:
+            self.shoot_timer -= 1
+            if self.shoot_timer <= 0:
+                self.shoot()
+                self.shoot_timer = self.shoot_cooldown
+
+        # Update animation
+        self.sprite.facing_right = self.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
 
     def shoot(self) -> None:
+        """Start firing animation."""
+        self.firing = True
+        self.fire_timer = self.FIRE_DURATION
+        self.fired_shot = False
+        self.sprite.play("fire", force_restart=True)
+
+    def _fire_projectile(self) -> None:
         """Fire a cannonball with arc."""
         direction = 1 if self.faces_right else -1
         ball = Cannonball(
@@ -245,14 +561,306 @@ class Cannon(Enemy):
         )
         self.projectile_group.add(ball)
 
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw cannon, handling wider firing sprite."""
+        if not self.active:
+            return
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        frame = self.sprite.get_frame()
+
+        # Handle wider firing sprite offset when facing left
+        if self.firing and frame.get_width() > CANNON_SIZE:
+            extra_width = frame.get_width() - CANNON_SIZE
+            if not self.facing_right:
+                draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
+
+class Bosun(Enemy):
+    """
+    Miniboss enemy - The ship's Bosun, a tough disciplinarian.
+
+    Attacks:
+    - Melee whip attack (short range)
+    - Ground stomp (shockwave)
+    - Charge attack
+
+    Has a health bar displayed above.
+    """
+
+    # States
+    STATE_IDLE = "idle"
+    STATE_WALK = "walk"
+    STATE_WHIP_ATTACK = "whip"
+    STATE_STOMP = "stomp"
+    STATE_CHARGE = "charge"
+    STATE_STUNNED = "stunned"
+
+    def __init__(self, x: int, y: int):
+        super().__init__(x, y, BOSUN_WIDTH, BOSUN_HEIGHT, BOSUN_HEALTH, (100, 60, 40))
+
+        # AI state
+        self.state = self.STATE_IDLE
+        self.state_timer = 60
+        self.attack_cooldown = 0
+
+        # Charge attack
+        self.charge_direction = 0
+
+        # Arena bounds (set by level or defaults)
+        self.arena_left = x - 200
+        self.arena_right = x + 200
+
+        # Damage flash
+        self.damage_flash = 0
+
+        # Create placeholder image (will be replaced with sprite later)
+        self._create_placeholder_sprite()
+
+    def _create_placeholder_sprite(self) -> None:
+        """Create a placeholder colored sprite for the Bosun."""
+        self.image = pygame.Surface((BOSUN_WIDTH, BOSUN_HEIGHT), pygame.SRCALPHA)
+
+        # Body (dark brown)
+        pygame.draw.rect(self.image, (80, 50, 30), (8, 20, 28, 30))
+
+        # Head
+        pygame.draw.rect(self.image, (200, 160, 120), (12, 4, 20, 18))
+
+        # Bandana
+        pygame.draw.rect(self.image, (150, 30, 30), (10, 2, 24, 6))
+
+        # Legs
+        pygame.draw.rect(self.image, (60, 60, 70), (10, 48, 10, 14))
+        pygame.draw.rect(self.image, (60, 60, 70), (24, 48, 10, 14))
+
+        # Whip (coiled)
+        pygame.draw.rect(self.image, (50, 30, 20), (34, 25, 8, 8))
+
+        # Outline
+        pygame.draw.rect(self.image, (0, 0, 0), (0, 0, BOSUN_WIDTH, BOSUN_HEIGHT), 1)
+
+    def set_arena_bounds(self, left: int, right: int) -> None:
+        """Set the arena boundaries for the miniboss."""
+        self.arena_left = left
+        self.arena_right = right
+
+    def take_damage(self, amount: int = 1) -> bool:
+        """Take damage with brief stun."""
+        result = super().take_damage(amount)
+        if not result:
+            self.damage_flash = 10
+            # Brief stun when hit
+            if self.state != self.STATE_STUNNED:
+                self.state = self.STATE_STUNNED
+                self.state_timer = 20
+        return result
+
+    def update(self, player_rect: pygame.Rect = None) -> None:
+        """Update miniboss AI."""
+        self.update_stun()
+
+        if not player_rect:
+            return
+
+        # Update timers
+        if self.damage_flash > 0:
+            self.damage_flash -= 1
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+
+        self.state_timer -= 1
+
+        # Face player (unless charging)
+        if self.state != self.STATE_CHARGE:
+            self.facing_right = player_rect.centerx > self.rect.centerx
+
+        # State machine
+        if self.state == self.STATE_STUNNED:
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_IDLE:
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_WALK:
+            self._do_walk(player_rect)
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_WHIP_ATTACK:
+            if self.state_timer <= 0:
+                self.state = self.STATE_IDLE
+                self.state_timer = 20
+                self.attack_cooldown = BOSUN_ATTACK_COOLDOWN
+
+        elif self.state == self.STATE_STOMP:
+            if self.state_timer <= 0:
+                self.state = self.STATE_IDLE
+                self.state_timer = 30
+                self.attack_cooldown = BOSUN_ATTACK_COOLDOWN * 2
+
+        elif self.state == self.STATE_CHARGE:
+            self._do_charge()
+            if self.state_timer <= 0:
+                self.state = self.STATE_STUNNED
+                self.state_timer = 30  # Recovery after charge
+                self.attack_cooldown = BOSUN_ATTACK_COOLDOWN
+
+    def _choose_next_action(self, player_rect: pygame.Rect) -> None:
+        """Choose next action based on distance to player."""
+        distance = abs(player_rect.centerx - self.rect.centerx)
+
+        if self.attack_cooldown > 0:
+            self.state = self.STATE_WALK
+            self.state_timer = 45
+            return
+
+        # Close range: whip attack
+        if distance < 60:
+            self.state = self.STATE_WHIP_ATTACK
+            self.state_timer = 25
+            return
+
+        # Medium range: stomp (ground shockwave)
+        if distance < 150 and random.random() < 0.3:
+            self.state = self.STATE_STOMP
+            self.state_timer = 40
+            return
+
+        # Far range: charge
+        if distance > 100 and random.random() < 0.4:
+            self.state = self.STATE_CHARGE
+            self.state_timer = 50
+            self.charge_direction = 1 if self.facing_right else -1
+            return
+
+        # Default: walk toward player
+        self.state = self.STATE_WALK
+        self.state_timer = 40 + random.randint(0, 20)
+
+    def _do_walk(self, player_rect: pygame.Rect) -> None:
+        """Walk toward player."""
+        if self.facing_right:
+            self.rect.x += BOSUN_SPEED
+        else:
+            self.rect.x -= BOSUN_SPEED
+
+        # Keep in arena bounds
+        self.rect.x = max(self.arena_left, min(self.rect.x, self.arena_right - self.rect.width))
+
+    def _do_charge(self) -> None:
+        """Perform charge attack."""
+        self.rect.x += BOSUN_CHARGE_SPEED * self.charge_direction
+
+        # Stop at arena edges
+        if self.rect.x <= self.arena_left or self.rect.x >= self.arena_right - self.rect.width:
+            self.state_timer = 0
+
+    def get_attack_hitbox(self) -> pygame.Rect | None:
+        """Get attack hitbox for current attack."""
+        if self.state == self.STATE_WHIP_ATTACK and 5 < self.state_timer < 20:
+            # Whip has longer reach than sword
+            if self.facing_right:
+                return pygame.Rect(self.rect.right, self.rect.top + 15, 50, 30)
+            else:
+                return pygame.Rect(self.rect.left - 50, self.rect.top + 15, 50, 30)
+
+        elif self.state == self.STATE_STOMP and 10 < self.state_timer < 25:
+            # Stomp creates shockwave on both sides
+            return pygame.Rect(
+                self.rect.centerx - 80,
+                self.rect.bottom - 20,
+                160,
+                20
+            )
+
+        elif self.state == self.STATE_CHARGE:
+            return self.rect.inflate(10, 0)
+
+        return None
+
+    def get_attack_damage(self) -> int:
+        """Get damage for current attack."""
+        if self.state == self.STATE_STOMP:
+            return BOSUN_STOMP_DAMAGE
+        return 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw the Bosun with health bar and state indicators."""
+        if not self.active:
+            return
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        # Flip sprite if facing left
+        frame = self.image
+        if not self.facing_right:
+            frame = pygame.transform.flip(frame, True, False)
+
+        # Flash white when damaged
+        if self.damage_flash > 0 and self.damage_flash % 2 == 0:
+            flash_surface = frame.copy()
+            flash_surface.fill(WHITE)
+            surface.blit(flash_surface, (draw_x, draw_y))
+        else:
+            surface.blit(frame, (draw_x, draw_y))
+
+        # Draw health bar above
+        bar_width = 50
+        bar_height = 6
+        bar_x = draw_x + (BOSUN_WIDTH - bar_width) // 2
+        bar_y = draw_y - 12
+
+        # Background
+        pygame.draw.rect(surface, (60, 60, 60), (bar_x, bar_y, bar_width, bar_height))
+        # Health fill
+        health_pct = self.health / self.max_health
+        pygame.draw.rect(surface, (200, 50, 50), (bar_x, bar_y, int(bar_width * health_pct), bar_height))
+        # Border
+        pygame.draw.rect(surface, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 1)
+
+        # Draw attack indicators
+        if self.state == self.STATE_WHIP_ATTACK and 5 < self.state_timer < 20:
+            attack_box = self.get_attack_hitbox()
+            if attack_box:
+                attack_draw = attack_box.move(-camera_offset[0], -camera_offset[1])
+                pygame.draw.rect(surface, (200, 100, 50), attack_draw, 2)
+
+        elif self.state == self.STATE_STOMP and 10 < self.state_timer < 25:
+            attack_box = self.get_attack_hitbox()
+            if attack_box:
+                attack_draw = attack_box.move(-camera_offset[0], -camera_offset[1])
+                pygame.draw.rect(surface, (255, 200, 100), attack_draw, 3)
+
+        elif self.state == self.STATE_CHARGE:
+            draw_rect = pygame.Rect(draw_x, draw_y, BOSUN_WIDTH, BOSUN_HEIGHT)
+            pygame.draw.rect(surface, (255, 100, 0), draw_rect.inflate(4, 4), 2)
+
+        # Draw stunned stars
+        if self.state == self.STATE_STUNNED:
+            for i in range(2):
+                angle = (pygame.time.get_ticks() / 200 + i * 3.14) % (2 * 3.14159)
+                star_x = draw_x + BOSUN_WIDTH // 2 + int(15 * math.cos(angle))
+                star_y = draw_y - 5 + int(3 * math.sin(angle * 2))
+                pygame.draw.circle(surface, YELLOW, (star_x, star_y), 3)
+
 
 class Projectile(pygame.sprite.Sprite):
     """Base class for projectiles."""
 
     def __init__(self, x: int, y: int, velocity_x: float, velocity_y: float,
-                 size: int, color: tuple, damage: int = 1):
+                 width: int, height: int, color: tuple, damage: int = 1):
         super().__init__()
-        self.image = pygame.Surface((size, size))
+        self.base_width = width
+        self.base_height = height
+        self.image = pygame.Surface((width, height), pygame.SRCALPHA)
         self.image.fill(color)
         self.rect = self.image.get_rect(center=(x, y))
 
@@ -260,6 +868,7 @@ class Projectile(pygame.sprite.Sprite):
         self.velocity_y = velocity_y
         self.damage = damage
         self.active = True
+        self.facing_right = velocity_x > 0
 
     def update(self) -> None:
         """Move projectile."""
@@ -271,7 +880,11 @@ class Projectile(pygame.sprite.Sprite):
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the projectile."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
-        surface.blit(self.image, draw_rect)
+        frame = self.image
+        # Flip if moving left
+        if not self.facing_right:
+            frame = pygame.transform.flip(frame, True, False)
+        surface.blit(frame, draw_rect)
 
 
 class MusketBall(Projectile):
@@ -281,8 +894,16 @@ class MusketBall(Projectile):
         super().__init__(
             x, y,
             PROJECTILE_SPEED * direction, 0,
-            8, WHITE, 1
+            8, 8, WHITE, 1
         )
+        self._load_sprite()
+
+    def _load_sprite(self) -> None:
+        """Load musket ball sprite."""
+        sheet = get_projectile_sheet()
+        if sheet:
+            # Musket ball is at x=0, 8x8
+            self.image = sheet.get_frame(0, 2, 8, 8)  # y=2 to center in 12px height
 
 
 class Cannonball(Projectile):
@@ -292,9 +913,17 @@ class Cannonball(Projectile):
         super().__init__(
             x, y,
             CANNONBALL_SPEED * direction, -8,
-            12, (30, 30, 30), 2
+            12, 12, (30, 30, 30), 2
         )
         self.gravity = CANNONBALL_GRAVITY
+        self._load_sprite()
+
+    def _load_sprite(self) -> None:
+        """Load cannonball sprite."""
+        sheet = get_projectile_sheet()
+        if sheet:
+            # Cannonball is at x=12 (after 8px ball + 4px padding), 12x12
+            self.image = sheet.get_frame(12, 0, 12, 12)
 
     def update(self) -> None:
         """Move with gravity arc."""
@@ -656,8 +1285,16 @@ class AdmiralBullet(Projectile):
         super().__init__(
             x, y,
             PROJECTILE_SPEED * 1.2 * direction, 0,
-            10, (200, 150, 50), 1
+            10, 10, (200, 150, 50), 1
         )
+        self._load_sprite()
+
+    def _load_sprite(self) -> None:
+        """Load admiral bullet sprite."""
+        sheet = get_projectile_sheet()
+        if sheet:
+            # Admiral bullet is at x=28 (after 8 + 4 + 12 + 4), 10x10
+            self.image = sheet.get_frame(28, 1, 10, 10)  # y=1 to center in 12px height
 
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw bullet with trail effect."""
@@ -670,5 +1307,8 @@ class AdmiralBullet(Projectile):
             (draw_rect.centerx + trail_dir * 15, draw_rect.centery),
             3
         )
-        # Bullet
-        pygame.draw.circle(surface, (200, 150, 50), draw_rect.center, 5)
+        # Draw sprite
+        frame = self.image
+        if not self.facing_right:
+            frame = pygame.transform.flip(frame, True, False)
+        surface.blit(frame, draw_rect)

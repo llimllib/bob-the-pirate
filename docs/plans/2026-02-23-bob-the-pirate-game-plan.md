@@ -266,22 +266,27 @@ All enemy types including a functional boss fight.
 - [x] Update Level class to use tile sprites
 - [x] Background layers (sky, clouds, distant scenery)
 
-### Phase 8D: Collectibles & Items
-- [ ] Treasure chest (32x24)
-- [ ] Gold coin (16x16) - spinning animation (4 frames)
-- [ ] Rum bottle (12x20)
-- [ ] Pirate flag (24x32)
-- [ ] Loot chest/golden chest (32x24)
-- [ ] Exit door locked/unlocked (32x64)
-- [ ] Integrate into collectibles classes
+### Phase 8D: Collectibles & Items ✅
+- [x] Treasure chest (32x24)
+- [x] Gold coin (16x16) - spinning animation (4 frames)
+- [x] Rum bottle (12x20)
+- [x] Pirate flag (24x32)
+- [x] Loot chest/golden chest (32x24)
+- [x] Exit door locked/unlocked (32x64)
+- [x] Integrate into collectibles classes
+- [x] Sprite generator tool: `tools/generate_collectible_sprites.py`
+- [x] Sprite manager: `game/collectible_sprites.py`
+- [x] Tests in `tests/test_collectibles.py` (25 tests)
 
-### Phase 8E: Enemy Sprites
-- [ ] Sailor (28x44) - walk cycle (2 frames), hurt
-- [ ] Musketeer (28x44) - idle, shooting (2 frames)
-- [ ] Officer (32x48) - walk cycle (2 frames), attack (2 frames)
-- [ ] Cannon (32x32) - static, firing (2 frames)
-- [ ] Projectiles: musket ball (8x8), cannonball (12x12), admiral bullet (10x10)
-- [ ] Integrate into enemy classes
+### Phase 8E: Enemy Sprites ✅
+- [x] Sailor (28x44) - walk cycle (2 frames), hurt
+- [x] Musketeer (28x44) - idle, shooting (2 frames)
+- [x] Officer (32x48) - walk cycle (2 frames), attack (2 frames)
+- [x] Cannon (32x32) - static, firing (2 frames)
+- [x] Projectiles: musket ball (8x8), cannonball (12x12), admiral bullet (10x10)
+- [x] Integrate into enemy classes
+- [x] Sprite generator tool: `tools/generate_enemy_sprites.py`
+- [x] Tests for enemy animations in `tests/test_enemies.py` (41 tests)
 
 ### Phase 8F: Boss & Power-ups ✅
 - [x] Vice-Admiral Garp (48x64) - idle, walk (2 frames), sword attack (3 frames), pistol shot (2 frames), charge, stunned
@@ -334,19 +339,27 @@ Cohesive NES-style pixel art visual style throughout.
 
 ---
 
-## Phase 9: Complete Levels
+## Phase 9: Complete Levels ✅
 **Estimated Time**: 1-2 Claude sessions
 
 ### Goals
-- [ ] Design and build Level 1 (Port Town)
-- [ ] Design and build Level 2 (HMS Revenge)
-- [ ] Design and build Level 3 (Cliff Fortress)
-- [ ] Design and build Level 4 (Governor's Mansion)
-- [ ] Level progression system
-- [ ] Level select screen
+- [x] Design and build Level 1 (Port Town) - Tutorial level with sailors
+- [x] Design and build Level 2 (HMS Revenge) - Ship level with all enemy types
+- [x] Design and build Level 3 (Cliff Fortress) - Vertical climbing with cannons
+- [x] Design and build Level 4 (The Armory) - **Miniboss level with Bosun**
+- [x] Design and build Level 5 (Governor's Mansion) - Challenging pre-boss level
+- [x] Boss Arena (Admiral's Quarters) - Final boss fight
+- [x] Level select screen (6 levels available)
+
+### New: Bosun Miniboss
+- Health: 6 (displayed with health bar)
+- Attacks: Whip (long range), Ground Stomp (shockwave), Charge
+- Stomp does 2 damage
+- Brief stun when hit
+- Placed in Level 4 as a mid-game challenge
 
 ### Deliverable
-Four complete, playable levels with increasing difficulty.
+Six complete, playable levels with miniboss and final boss.
 
 ---
 
