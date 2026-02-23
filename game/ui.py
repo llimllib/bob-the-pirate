@@ -43,12 +43,27 @@ class HUD:
         powerup_y = 70
         if player.has_parrot:
             self._draw_powerup(surface, "PARROT", player.parrot_timer, 600, powerup_y)
-            powerup_y += 35
+            powerup_y += 30
+        if player.has_monkey:
+            self._draw_powerup(surface, "MONKEY", player.monkey_timer, 720, powerup_y)
+            powerup_y += 30
         if player.has_grog:
             self._draw_powerup(surface, "GROG RAGE", player.grog_timer, 300, powerup_y)
-            powerup_y += 35
+            powerup_y += 30
+        if player.has_cutlass_fury:
+            self._draw_powerup(surface, "FURY", player.cutlass_fury_timer, 600, powerup_y)
+            powerup_y += 30
+        if player.has_double_jump:
+            self._draw_powerup(surface, "DBL JUMP", player.double_jump_timer, 1200, powerup_y)
+            powerup_y += 30
+        if player.has_magnet:
+            self._draw_powerup(surface, "MAGNET", player.magnet_timer, 1800, powerup_y)
+            powerup_y += 30
         if player.has_shield:
             self._draw_powerup_static(surface, "SHIELD", powerup_y)
+            powerup_y += 25
+        if player.has_cannon_shot:
+            self._draw_powerup_ammo(surface, "CANNON", player.cannon_ammo, powerup_y)
 
         # Boss health bar
         if level.is_boss_level and level.boss and level.boss.active:
@@ -122,6 +137,14 @@ class HUD:
             return
 
         text = self.small_font.render(name, True, (100, 200, 255))
+        surface.blit(text, (10, y_pos))
+
+    def _draw_powerup_ammo(self, surface: pygame.Surface, name: str, ammo: int, y_pos: int) -> None:
+        """Draw power-up indicator with ammo count (like cannon shot)."""
+        if not self.small_font:
+            return
+
+        text = self.small_font.render(f"{name} x{ammo}", True, (255, 200, 100))
         surface.blit(text, (10, y_pos))
 
     def _draw_boss_health(self, surface: pygame.Surface, boss) -> None:

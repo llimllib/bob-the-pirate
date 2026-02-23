@@ -10,6 +10,8 @@ from game.settings import (
     ATTACK_DURATION,
     ATTACK_FRAME_WIDTH,
     ATTACK_RANGE,
+    CUTLASS_FURY_COOLDOWN_MULT,
+    CUTLASS_FURY_RANGE_MULT,
     GRAVITY,
     INVINCIBILITY_FRAMES,
     MAX_FALL_SPEED,
@@ -65,6 +67,28 @@ class Player(pygame.sprite.Sprite):
         self.has_grog = False
         self.grog_timer = 0
         self.damage_multiplier = 1
+
+        # Cannon Shot power-up
+        self.has_cannon_shot = False
+        self.cannon_ammo = 0
+
+        # Double Jump power-up
+        self.has_double_jump = False
+        self.double_jump_timer = 0
+        self.can_double_jump = False  # Reset when landing
+        self.used_double_jump = False  # Track if used in current air time
+
+        # Cutlass Fury power-up
+        self.has_cutlass_fury = False
+        self.cutlass_fury_timer = 0
+
+        # Treasure Magnet power-up
+        self.has_magnet = False
+        self.magnet_timer = 0
+
+        # Monkey Mate power-up
+        self.has_monkey = False
+        self.monkey_timer = 0
 
     def _load_animations(self) -> None:
         """Load player animations from sprite sheet or use placeholders."""
@@ -155,10 +179,23 @@ class Player(pygame.sprite.Sprite):
             self.velocity_x = PLAYER_SPEED
             self.facing_right = True
 
-        # Jumping
+        # Jumping (handled by game.py for double jump sound support)
+        # Base jump
         if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_ground:
             self.velocity_y = PLAYER_JUMP_POWER
             self.on_ground = False
+            self.used_double_jump = False  # Reset double jump on ground jump
+
+    def try_double_jump(self) -> bool:
+        """
+        Attempt to perform a double jump.
+        Returns True if double jump was performed.
+        """
+        if self.has_double_jump and not self.on_ground and not self.used_double_jump:
+            self.velocity_y = PLAYER_JUMP_POWER * 0.85  # Slightly weaker
+            self.used_double_jump = True
+            return True
+        return False
 
     def attack(self) -> pygame.Rect | None:
         """
@@ -170,7 +207,13 @@ class Player(pygame.sprite.Sprite):
 
         self.attacking = True
         self.attack_timer = ATTACK_DURATION
-        self.attack_cooldown = ATTACK_COOLDOWN
+
+        # Cutlass Fury reduces cooldown
+        cooldown = ATTACK_COOLDOWN
+        if self.has_cutlass_fury:
+            cooldown = int(ATTACK_COOLDOWN * CUTLASS_FURY_COOLDOWN_MULT)
+        self.attack_cooldown = cooldown
+
         self.enemies_hit_this_attack.clear()  # Reset hit tracking for new attack
 
         # Force attack animation to restart
@@ -178,24 +221,44 @@ class Player(pygame.sprite.Sprite):
 
         return self.get_attack_hitbox()
 
+    def fire_cannon(self) -> bool:
+        """
+        Fire a cannon shot if player has ammo.
+        Returns True if shot was fired.
+        """
+        if self.has_cannon_shot and self.cannon_ammo > 0 and self.attack_cooldown <= 0:
+            self.cannon_ammo -= 1
+            self.attack_cooldown = ATTACK_COOLDOWN  # Share cooldown with melee
+            if self.cannon_ammo <= 0:
+                self.has_cannon_shot = False
+            return True
+        return False
+
     def get_attack_hitbox(self) -> pygame.Rect | None:
         """Get the current attack hitbox if attacking."""
         if not self.attacking:
             return None
 
+        # Cutlass Fury increases range
+        attack_range = ATTACK_RANGE
+        attack_height = PLAYER_HEIGHT // 2
+        if self.has_cutlass_fury:
+            attack_range = int(ATTACK_RANGE * CUTLASS_FURY_RANGE_MULT)
+            attack_height = int(attack_height * CUTLASS_FURY_RANGE_MULT)
+
         if self.facing_right:
             return pygame.Rect(
                 self.rect.right,
-                self.rect.centery - PLAYER_HEIGHT // 4,
-                ATTACK_RANGE,
-                PLAYER_HEIGHT // 2
+                self.rect.centery - attack_height // 2,
+                attack_range,
+                attack_height
             )
         else:
             return pygame.Rect(
-                self.rect.left - ATTACK_RANGE,
-                self.rect.centery - PLAYER_HEIGHT // 4,
-                ATTACK_RANGE,
-                PLAYER_HEIGHT // 2
+                self.rect.left - attack_range,
+                self.rect.centery - attack_height // 2,
+                attack_range,
+                attack_height
             )
 
     def take_damage(self, amount: int = 1) -> bool:
@@ -272,6 +335,30 @@ class Player(pygame.sprite.Sprite):
             if self.grog_timer <= 0:
                 self.has_grog = False
                 self.damage_multiplier = 1
+
+        if self.has_double_jump:
+            self.double_jump_timer -= 1
+            if self.double_jump_timer <= 0:
+                self.has_double_jump = False
+
+        if self.has_cutlass_fury:
+            self.cutlass_fury_timer -= 1
+            if self.cutlass_fury_timer <= 0:
+                self.has_cutlass_fury = False
+
+        if self.has_magnet:
+            self.magnet_timer -= 1
+            if self.magnet_timer <= 0:
+                self.has_magnet = False
+
+        if self.has_monkey:
+            self.monkey_timer -= 1
+            if self.monkey_timer <= 0:
+                self.has_monkey = False
+
+        # Reset double jump when landing
+        if self.on_ground:
+            self.used_double_jump = False
 
         # Move (collision handled by level)
         self.rect.x += int(self.velocity_x)

@@ -3,7 +3,16 @@
 import pygame
 
 from game.collectible_sprites import get_collectible_sprites
-from game.settings import CHEST_POINTS, COIN_VALUE, PARROT_DURATION
+from game.settings import (
+    CANNON_SHOT_AMMO,
+    CHEST_POINTS,
+    COIN_VALUE,
+    CUTLASS_FURY_DURATION,
+    DOUBLE_JUMP_DURATION,
+    MAGNET_DURATION,
+    MONKEY_DURATION,
+    PARROT_DURATION,
+)
 
 
 class Collectible(pygame.sprite.Sprite):
@@ -144,6 +153,27 @@ class LootChest(Collectible):
         elif self.powerup_type == "shield":
             player.has_shield = True
             return {"type": "powerup", "powerup": "shield"}
+        elif self.powerup_type == "cannon_shot":
+            player.has_cannon_shot = True
+            player.cannon_ammo = CANNON_SHOT_AMMO
+            return {"type": "powerup", "powerup": "cannon_shot"}
+        elif self.powerup_type == "double_jump":
+            player.has_double_jump = True
+            player.double_jump_timer = DOUBLE_JUMP_DURATION
+            player.used_double_jump = False
+            return {"type": "powerup", "powerup": "double_jump"}
+        elif self.powerup_type == "cutlass_fury":
+            player.has_cutlass_fury = True
+            player.cutlass_fury_timer = CUTLASS_FURY_DURATION
+            return {"type": "powerup", "powerup": "cutlass_fury"}
+        elif self.powerup_type == "magnet":
+            player.has_magnet = True
+            player.magnet_timer = MAGNET_DURATION
+            return {"type": "powerup", "powerup": "magnet"}
+        elif self.powerup_type == "monkey":
+            player.has_monkey = True
+            player.monkey_timer = MONKEY_DURATION
+            return {"type": "powerup", "powerup": "monkey"}
 
         return {"type": "powerup", "powerup": self.powerup_type}
 

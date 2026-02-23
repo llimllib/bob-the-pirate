@@ -180,6 +180,11 @@ stop_music()                 # Stop music
 5. Add UI indicator in `ui.py` `_draw_powerup()` or `_draw_powerup_static()`
 
 ### Current Power-ups
-- **Parrot** - Follows player, auto-attacks nearby enemies (timed)
-- **Grog Rage** - 2x damage multiplier (timed)
+- **Parrot** - Follows player, auto-attacks nearby enemies (timed, 10s)
+- **Grog Rage** - 2x damage multiplier (timed, 5s)
 - **Ghost Shield** - Absorbs one hit (until used)
+- **Cannon Shot** - Press E to fire cannonballs (8 ammo, 2 damage each)
+- **Double Jump** - Jump again in mid-air (timed, 20s)
+- **Cutlass Fury** - Faster attacks, 50% wider hitbox (timed, 10s)
+- **Treasure Magnet** - Pull collectibles toward you (timed, 30s)
+- **Monkey Mate** - Throws coconuts at enemies, longer range than parrot (timed, 12s)

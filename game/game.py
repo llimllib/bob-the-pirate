@@ -6,8 +6,18 @@ from game.audio import get_audio_manager, play_music, play_sound, stop_music
 from game.camera import Camera
 from game.level import Level
 from game.player import Player
-from game.powerups import GhostShield, Parrot
-from game.settings import BLACK, FPS, SCREEN_HEIGHT, SCREEN_WIDTH, SKY_BLUE, TITLE, WHITE
+from game.powerups import GhostShield, Monkey, Parrot, PlayerCannonball
+from game.settings import (
+    BLACK,
+    FPS,
+    MAGNET_RANGE,
+    MAGNET_STRENGTH,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    SKY_BLUE,
+    TITLE,
+    WHITE,
+)
 from game.tiles import get_background_layers
 from game.ui import HUD
 
@@ -50,6 +60,8 @@ class Game:
         # Power-up entities
         self.parrot = None
         self.shield = None
+        self.monkey = None
+        self.player_projectiles = pygame.sprite.Group()
 
         # Background layers (loaded lazily)
         self.backgrounds = None
@@ -130,6 +142,8 @@ class Game:
         self.score = 0
         self.parrot = None
         self.shield = None
+        self.monkey = None
+        self.player_projectiles = pygame.sprite.Group()
 
         # Reset sound state tracking
         self.was_on_ground = True
@@ -178,6 +192,21 @@ class Game:
                     elif event.key == pygame.K_q:
                         if self.player.attack():
                             play_sound("slash")
+                    elif event.key == pygame.K_e:
+                        # Cannon shot (alternate attack)
+                        if self.player.fire_cannon():
+                            play_sound("cannon")
+                            direction = 1 if self.player.facing_right else -1
+                            cannonball = PlayerCannonball(
+                                self.player.rect.centerx + direction * 20,
+                                self.player.rect.centery,
+                                direction
+                            )
+                            self.player_projectiles.add(cannonball)
+                    elif event.key in (pygame.K_SPACE, pygame.K_w, pygame.K_UP):
+                        # Double jump (if in air and have power-up)
+                        if not self.player.on_ground and self.player.try_double_jump():
+                            play_sound("jump")
 
                 elif self.state == GameState.PAUSED:
                     if event.key == pygame.K_ESCAPE:
@@ -305,6 +334,11 @@ class Game:
                 play_sound("powerup")
             if item.get("powerup") == "grog":
                 play_sound("powerup")
+            if item.get("powerup") == "monkey":
+                self.monkey = Monkey(self.player, self.player_projectiles)
+                play_sound("powerup")
+            if item.get("powerup") in ("cannon_shot", "double_jump", "cutlass_fury", "magnet"):
+                play_sound("powerup")
 
             # Play appropriate collection sound
             item_type = item.get("type")
@@ -334,6 +368,55 @@ class Game:
                 self.shield.update()
             else:
                 self.shield = None
+
+        # Update monkey companion
+        if self.monkey:
+            if self.player.has_monkey:
+                self.monkey.update(self.level.enemies)
+            else:
+                self.monkey = None
+
+        # Update player projectiles (cannon shots, coconuts)
+        for proj in self.player_projectiles:
+            proj.update()
+            # Check collision with enemies
+            for enemy in self.level.enemies:
+                if proj.rect.colliderect(enemy.rect):
+                    damage = proj.damage
+                    was_alive = enemy.health > 0
+                    killed = enemy.take_damage(damage)
+                    proj.kill()
+                    if was_alive:
+                        if killed:
+                            if enemy == self.level.boss:
+                                play_sound("boss_hit")
+                            else:
+                                play_sound("enemy_death")
+                        else:
+                            if enemy == self.level.boss:
+                                play_sound("boss_hit")
+                            else:
+                                play_sound("hit")
+                    break
+            # Remove off-screen projectiles
+            if proj.rect.right < 0 or proj.rect.left > self.level.width:
+                proj.kill()
+
+        # Treasure Magnet - pull collectibles toward player
+        if self.player.has_magnet:
+            import math
+            for item in self.level.collectibles:
+                if item.collected:
+                    continue
+                dx = self.player.rect.centerx - item.rect.centerx
+                dy = self.player.rect.centery - item.rect.centery
+                dist = math.sqrt(dx * dx + dy * dy)
+                if dist < MAGNET_RANGE and dist > 0:
+                    # Pull toward player
+                    pull_x = (dx / dist) * MAGNET_STRENGTH
+                    pull_y = (dy / dist) * MAGNET_STRENGTH
+                    item.rect.x += int(pull_x)
+                    item.rect.y += int(pull_y)
 
         # Check enemy collisions
         for enemy in self.level.enemies:
@@ -530,6 +613,18 @@ class Game:
         # Draw parrot companion
         if self.parrot and self.player.has_parrot:
             self.parrot.draw(self.screen, offset)
+
+        # Draw monkey companion
+        if self.monkey and self.player.has_monkey:
+            self.monkey.draw(self.screen, offset)
+
+        # Draw player projectiles
+        for proj in self.player_projectiles:
+            if hasattr(proj, 'draw'):
+                proj.draw(self.screen, offset)
+            else:
+                draw_rect = proj.rect.move(-offset[0], -offset[1])
+                self.screen.blit(proj.image, draw_rect)
 
         # Draw HUD
         self.hud.draw(self.screen, self.player, self.level, self.score)

@@ -55,6 +55,32 @@ PARROT_DURATION = 600  # 10 seconds at 60 FPS
 PARROT_ATTACK_COOLDOWN = 60
 PARROT_DAMAGE = 1
 
+# Cannon Shot power-up
+CANNON_SHOT_AMMO = 8
+CANNON_SHOT_DAMAGE = 2
+CANNON_SHOT_SPEED = 10
+
+# Double Jump power-up
+DOUBLE_JUMP_DURATION = 1200  # 20 seconds at 60 FPS
+
+# Cutlass Fury power-up
+CUTLASS_FURY_DURATION = 600  # 10 seconds at 60 FPS
+CUTLASS_FURY_COOLDOWN_MULT = 0.5  # Half cooldown
+CUTLASS_FURY_RANGE_MULT = 1.5  # 50% wider hitbox
+
+# Treasure Magnet power-up
+MAGNET_DURATION = 1800  # 30 seconds (whole level basically)
+MAGNET_RANGE = 150  # Pixels to pull from
+MAGNET_STRENGTH = 5  # Speed of pull
+
+# Monkey Mate power-up
+MONKEY_DURATION = 720  # 12 seconds at 60 FPS
+MONKEY_ATTACK_COOLDOWN = 45  # Faster than parrot
+MONKEY_DAMAGE = 1
+MONKEY_RANGE = 200  # Longer range than parrot
+MONKEY_WIDTH = 20
+MONKEY_HEIGHT = 16
+
 # Miniboss settings (Bosun)
 BOSUN_WIDTH = 44
 BOSUN_HEIGHT = 64
