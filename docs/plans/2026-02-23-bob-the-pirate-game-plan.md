@@ -116,103 +116,103 @@ bob-the-pirate/
 
 # Development Phases
 
-## Phase 1: Foundation & Player Movement
+## Phase 1: Foundation & Player Movement ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
 - [x] Set up project with uv and pygame
 - [x] Create project skeleton
-- [ ] Implement game window and main loop
-- [ ] Player sprite (placeholder rectangle)
-- [ ] Horizontal movement (left/right)
-- [ ] Gravity and jumping
-- [ ] Basic ground collision
-- [ ] Camera following player
+- [x] Implement game window and main loop
+- [x] Player sprite (placeholder rectangle)
+- [x] Horizontal movement (left/right)
+- [x] Gravity and jumping
+- [x] Basic ground collision
+- [x] Camera following player
 
 ### Deliverable
 A player character that can run and jump on a flat ground surface.
 
 ---
 
-## Phase 2: Level System & Tiles
+## Phase 2: Level System & Tiles ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Tile-based level loading from JSON
-- [ ] Platform collision detection
-- [ ] Multiple platform types (solid, one-way)
-- [ ] Level boundaries
-- [ ] Simple test level with varied platforms
-- [ ] Death plane (falling off screen)
+- [x] Tile-based level loading from JSON
+- [x] Platform collision detection
+- [x] Multiple platform types (solid, one-way)
+- [x] Level boundaries
+- [x] Simple test level with varied platforms
+- [x] Death plane (falling off screen)
 
 ### Deliverable
 A complete test level with platforms the player can navigate.
 
 ---
 
-## Phase 3: Combat System
+## Phase 3: Combat System ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Sword slash attack (Q key)
-- [ ] Attack hitbox and timing
-- [ ] Attack animation/visual feedback
-- [ ] Player health system
-- [ ] Damage and invincibility frames
-- [ ] Health UI display
-- [ ] Death and respawn
+- [x] Sword slash attack (Q key)
+- [x] Attack hitbox and timing
+- [x] Attack animation/visual feedback
+- [x] Player health system
+- [x] Damage and invincibility frames
+- [x] Health UI display
+- [x] Death and respawn
 
 ### Deliverable
 Player can attack and take damage with visual feedback.
 
 ---
 
-## Phase 4: Basic Enemies
+## Phase 4: Basic Enemies ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Enemy base class
-- [ ] Sailor enemy (patrol AI)
-- [ ] Enemy-player collision (damage)
-- [ ] Enemy takes damage from sword
-- [ ] Enemy death/removal
-- [ ] Musketeer enemy (shoots projectiles)
-- [ ] Projectile system
+- [x] Enemy base class
+- [x] Sailor enemy (patrol AI)
+- [x] Enemy-player collision (damage)
+- [x] Enemy takes damage from sword
+- [x] Enemy death/removal
+- [x] Musketeer enemy (shoots projectiles)
+- [x] Projectile system
 
 ### Deliverable
 Two enemy types that can hurt and be hurt by the player.
 
 ---
 
-## Phase 5: Collectibles & Level Completion
+## Phase 5: Collectibles & Level Completion ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Treasure chest collectible
-- [ ] Chest collection counter UI
-- [ ] Level completion logic (all chests = exit unlocks)
-- [ ] Exit door/portal
-- [ ] Gold coins (score)
-- [ ] Rum bottles (health restore)
-- [ ] Pirate flags (extra life)
+- [x] Treasure chest collectible
+- [x] Chest collection counter UI
+- [x] Level completion logic (all chests = exit unlocks)
+- [x] Exit door/portal
+- [x] Gold coins (score)
+- [x] Rum bottles (health restore)
+- [x] Pirate flags (extra life)
 
 ### Deliverable
 Complete gameplay loop: collect all chests, exit level.
 
 ---
 
-## Phase 6: Power-up System & Parrot
+## Phase 6: Power-up System & Parrot ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Loot chest (special chest with power-ups)
-- [ ] Power-up base class
-- [ ] Parrot companion power-up
+- [x] Loot chest (special chest with power-ups)
+- [x] Power-up base class
+- [x] Parrot companion power-up
   - Follows player
   - Attacks nearby enemies
   - Duration-based or permanent per level
-- [ ] Visual indicator for active power-ups
-- [ ] Additional power-ups (Grog Rage, Shield)
+- [x] Visual indicator for active power-ups
+- [x] Additional power-ups (Grog Rage, Shield)
 
 ### Deliverable
 Working parrot companion and power-up system.

@@ -40,6 +40,10 @@ class Player(pygame.sprite.Sprite):
         # Power-ups
         self.has_parrot = False
         self.parrot_timer = 0
+        self.has_shield = False
+        self.has_grog = False
+        self.grog_timer = 0
+        self.damage_multiplier = 1
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
         """Process keyboard input for movement and actions."""
@@ -153,6 +157,12 @@ class Player(pygame.sprite.Sprite):
             self.parrot_timer -= 1
             if self.parrot_timer <= 0:
                 self.has_parrot = False
+        
+        if self.has_grog:
+            self.grog_timer -= 1
+            if self.grog_timer <= 0:
+                self.has_grog = False
+                self.damage_multiplier = 1
         
         # Move (collision handled by level)
         self.rect.x += int(self.velocity_x)

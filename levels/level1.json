@@ -1,6 +1,6 @@
 {
   "name": "Port Town",
-  "width": 1600,
+  "width": 2400,
   "height": 600,
   "player_start": [100, 400],
   "tiles": [
@@ -29,27 +29,89 @@
     {"x": 22, "y": 17, "type": "solid"},
     {"x": 23, "y": 17, "type": "solid"},
     {"x": 24, "y": 17, "type": "solid"},
+    {"x": 25, "y": 17, "type": "solid"},
+    {"x": 26, "y": 17, "type": "solid"},
+    {"x": 27, "y": 17, "type": "solid"},
+    {"x": 28, "y": 17, "type": "solid"},
+    {"x": 29, "y": 17, "type": "solid"},
+    {"x": 30, "y": 17, "type": "solid"},
+    {"x": 31, "y": 17, "type": "solid"},
+    {"x": 32, "y": 17, "type": "solid"},
+    {"x": 33, "y": 17, "type": "solid"},
+    {"x": 34, "y": 17, "type": "solid"},
+    {"x": 35, "y": 17, "type": "solid"},
+    {"x": 36, "y": 17, "type": "solid"},
+    {"x": 37, "y": 17, "type": "solid"},
+    {"x": 38, "y": 17, "type": "solid"},
+    {"x": 39, "y": 17, "type": "solid"},
+    {"x": 40, "y": 17, "type": "solid"},
+    {"x": 41, "y": 17, "type": "solid"},
+    {"x": 42, "y": 17, "type": "solid"},
+    {"x": 43, "y": 17, "type": "solid"},
+    {"x": 44, "y": 17, "type": "solid"},
+    {"x": 45, "y": 17, "type": "solid"},
+    {"x": 46, "y": 17, "type": "solid"},
+    {"x": 47, "y": 17, "type": "solid"},
+    {"x": 48, "y": 17, "type": "solid"},
+    {"x": 49, "y": 17, "type": "solid"},
+    
     {"x": 6, "y": 14, "type": "solid"},
     {"x": 7, "y": 14, "type": "solid"},
     {"x": 8, "y": 14, "type": "solid"},
-    {"x": 12, "y": 12, "type": "solid"},
-    {"x": 13, "y": 12, "type": "solid"},
-    {"x": 14, "y": 12, "type": "solid"},
-    {"x": 15, "y": 12, "type": "solid"},
-    {"x": 18, "y": 14, "type": "solid"},
-    {"x": 19, "y": 14, "type": "solid"},
-    {"x": 20, "y": 14, "type": "solid"}
+    
+    {"x": 12, "y": 12, "type": "platform"},
+    {"x": 13, "y": 12, "type": "platform"},
+    {"x": 14, "y": 12, "type": "platform"},
+    {"x": 15, "y": 12, "type": "platform"},
+    
+    {"x": 20, "y": 14, "type": "solid"},
+    {"x": 21, "y": 14, "type": "solid"},
+    {"x": 22, "y": 14, "type": "solid"},
+    
+    {"x": 26, "y": 11, "type": "platform"},
+    {"x": 27, "y": 11, "type": "platform"},
+    {"x": 28, "y": 11, "type": "platform"},
+    
+    {"x": 32, "y": 14, "type": "solid"},
+    {"x": 33, "y": 14, "type": "solid"},
+    {"x": 34, "y": 14, "type": "solid"},
+    {"x": 35, "y": 14, "type": "solid"},
+    
+    {"x": 40, "y": 12, "type": "solid"},
+    {"x": 41, "y": 12, "type": "solid"},
+    {"x": 42, "y": 12, "type": "solid"},
+    {"x": 40, "y": 13, "type": "solid"},
+    {"x": 41, "y": 13, "type": "solid"},
+    {"x": 42, "y": 13, "type": "solid"},
+    
+    {"x": 45, "y": 14, "type": "solid"},
+    {"x": 46, "y": 14, "type": "solid"},
+    {"x": 47, "y": 14, "type": "solid"},
+    {"x": 48, "y": 14, "type": "solid"}
   ],
   "enemies": [
-    {"type": "sailor", "x": 300, "y": 512, "patrol_distance": 150}
+    {"type": "sailor", "x": 300, "y": 496, "patrol_distance": 150},
+    {"type": "sailor", "x": 700, "y": 496, "patrol_distance": 100},
+    {"type": "sailor", "x": 1100, "y": 496, "patrol_distance": 120}
   ],
   "collectibles": [
     {"type": "treasure", "x": 224, "y": 400},
-    {"type": "treasure", "x": 448, "y": 320},
-    {"type": "treasure", "x": 608, "y": 400},
-    {"type": "coin", "x": 150, "y": 480},
-    {"type": "coin", "x": 180, "y": 480},
-    {"type": "coin", "x": 210, "y": 480}
+    {"type": "treasure", "x": 432, "y": 336},
+    {"type": "treasure", "x": 864, "y": 304},
+    
+    {"type": "coin", "x": 150, "y": 512},
+    {"type": "coin", "x": 180, "y": 512},
+    {"type": "coin", "x": 210, "y": 512},
+    {"type": "coin", "x": 500, "y": 512},
+    {"type": "coin", "x": 530, "y": 512},
+    {"type": "coin", "x": 560, "y": 512},
+    {"type": "coin", "x": 900, "y": 512},
+    {"type": "coin", "x": 930, "y": 512},
+    
+    {"type": "rum", "x": 660, "y": 400},
+    
+    {"type": "loot", "x": 1056, "y": 400, "powerup": "parrot"},
+    {"type": "loot", "x": 1280, "y": 350, "powerup": "shield"}
   ],
-  "exit": {"x": 736, "y": 480}
+  "exit": {"x": 1500, "y": 480}
 }

@@ -132,10 +132,12 @@ class LootChest(Collectible):
             player.parrot_timer = PARROT_DURATION
             return {"type": "powerup", "powerup": "parrot"}
         elif self.powerup_type == "grog":
-            # TODO: Implement grog rage
+            player.has_grog = True
+            player.grog_timer = 300  # 5 seconds
+            player.damage_multiplier = 2
             return {"type": "powerup", "powerup": "grog"}
         elif self.powerup_type == "shield":
-            # TODO: Implement shield
+            player.has_shield = True
             return {"type": "powerup", "powerup": "shield"}
         
         return {"type": "powerup", "powerup": self.powerup_type}

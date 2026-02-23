@@ -22,7 +22,7 @@ class HUD:
         except:
             pass
 
-    def draw(self, surface: pygame.Surface, player, level) -> None:
+    def draw(self, surface: pygame.Surface, player, level, score: int = 0) -> None:
         """Draw the HUD."""
         if not self.font:
             self._init_fonts()
@@ -36,12 +36,19 @@ class HUD:
         # Treasure counter
         self._draw_treasure(surface, level)
         
-        # Score (placeholder)
-        self._draw_score(surface, 0)
+        # Score
+        self._draw_score(surface, score)
         
-        # Power-up indicator
+        # Power-up indicators
+        powerup_y = 70
         if player.has_parrot:
-            self._draw_powerup(surface, "PARROT", player.parrot_timer)
+            self._draw_powerup(surface, "PARROT", player.parrot_timer, 600, powerup_y)
+            powerup_y += 35
+        if player.has_grog:
+            self._draw_powerup(surface, "GROG RAGE", player.grog_timer, 300, powerup_y)
+            powerup_y += 35
+        if player.has_shield:
+            self._draw_powerup_static(surface, "SHIELD", powerup_y)
 
     def _draw_health(self, surface: pygame.Surface, player) -> None:
         """Draw health hearts."""
@@ -87,22 +94,31 @@ class HUD:
         text = self.small_font.render(f"Score: {score}", True, WHITE)
         surface.blit(text, (SCREEN_WIDTH - 200, 45))
 
-    def _draw_powerup(self, surface: pygame.Surface, name: str, timer: int) -> None:
-        """Draw active power-up indicator."""
+    def _draw_powerup(self, surface: pygame.Surface, name: str, timer: int, 
+                      max_timer: int, y_pos: int) -> None:
+        """Draw active power-up indicator with timer bar."""
         if not self.small_font:
             return
         
-        # Draw power-up name and timer bar
+        # Draw power-up name
         text = self.small_font.render(name, True, WHITE)
-        surface.blit(text, (10, 70))
+        surface.blit(text, (10, y_pos))
         
         # Timer bar
         bar_width = 100
-        bar_height = 10
-        fill_width = int((timer / 600) * bar_width)  # Assuming 600 frame duration
+        bar_height = 8
+        fill_width = int((timer / max_timer) * bar_width)
         
-        pygame.draw.rect(surface, (60, 60, 60), (10, 90, bar_width, bar_height))
-        pygame.draw.rect(surface, (0, 200, 0), (10, 90, fill_width, bar_height))
+        pygame.draw.rect(surface, (60, 60, 60), (10, y_pos + 18, bar_width, bar_height))
+        pygame.draw.rect(surface, (0, 200, 0), (10, y_pos + 18, fill_width, bar_height))
+
+    def _draw_powerup_static(self, surface: pygame.Surface, name: str, y_pos: int) -> None:
+        """Draw power-up indicator without timer (like shield)."""
+        if not self.small_font:
+            return
+        
+        text = self.small_font.render(name, True, (100, 200, 255))
+        surface.blit(text, (10, y_pos))
 
 
 def draw_text_centered(surface: pygame.Surface, text: str, y: int, 

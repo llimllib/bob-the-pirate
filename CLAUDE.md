@@ -19,44 +19,55 @@ uv sync
 ### Core Files
 
 - **`main.py`** - Entry point, just calls `Game().run()`
-- **`game/game.py`** - Main game loop, state machine (MENU, PLAYING, PAUSED, GAME_OVER)
+- **`game/game.py`** - Main game loop, state machine (MENU, PLAYING, PAUSED, GAME_OVER, LEVEL_COMPLETE)
 - **`game/settings.py`** - All constants (speeds, sizes, colors, timings)
-- **`game/player.py`** - Player class with movement, combat, health
+- **`game/player.py`** - Player class with movement, combat, health, power-up states
 - **`game/enemies.py`** - Enemy classes: Sailor, Musketeer, Officer, Cannon + projectiles
-- **`game/level.py`** - Level loading, tile collision, entity management
-- **`game/collectibles.py`** - TreasureChest, Coin, RumBottle, PirateFlag, LootChest (parrot powerup)
+- **`game/level.py`** - Level loading from JSON, tile collision (solid + one-way platforms), entity management
+- **`game/collectibles.py`** - TreasureChest, Coin, RumBottle, PirateFlag, LootChest, ExitDoor
+- **`game/powerups.py`** - Parrot companion, GhostShield power-up entities
 - **`game/camera.py`** - Smooth-follow camera system
-- **`game/ui.py`** - HUD rendering (health, lives, treasure counter)
+- **`game/ui.py`** - HUD rendering (health, lives, treasure counter, score, power-up indicators)
 
 ### Game Flow
 
 1. `Game.run()` → main loop at 60 FPS
 2. `handle_events()` → keyboard input, state transitions
-3. `update()` → physics, collision, enemy AI
+3. `update()` → physics, collision, enemy AI, power-ups
 4. `draw()` → render based on current state
 
 ### Collision System
 
 Collision is split into X and Y passes in `game.py`:
-1. Move player X → check horizontal collision
+1. Move player X → check horizontal collision (solid tiles only)
 2. Move player Y → check vertical collision + set `on_ground`
+3. One-way platforms only collide when player is falling from above
+
+Level boundaries prevent player from walking off left/right edges.
 
 ### Level Format
 
 Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
-- `tiles[]` - x,y grid positions (multiplied by TILE_SIZE)
-- `enemies[]` - type and position
-- `collectibles[]` - type and position
-- `player_start` - spawn point
-- `exit` - level exit position
+- `name` - Level display name
+- `width`, `height` - Level dimensions in pixels
+- `tiles[]` - x,y grid positions (multiplied by TILE_SIZE), type: "solid", "platform", "decoration"
+- `enemies[]` - type (sailor/musketeer/officer/cannon), position, optional params (patrol_distance, faces_right)
+- `collectibles[]` - type (treasure/coin/rum/flag/loot), position, optional powerup type for loot chests
+- `player_start` - [x, y] spawn point
+- `exit` - {x, y} level exit position
+
+### Tile Types
+- `solid` - Full collision from all directions (brown)
+- `platform` - One-way, only blocks falling player (thin, can jump through from below)
+- `decoration` - No collision, visual only (green)
 
 ## Development Plan
 
 See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap.
 
-**Current Status**: Phase 1 skeleton complete. Player can move, jump, attack. Test level with platforms.
+**Current Status**: Phases 1-6 complete. Full gameplay loop working: movement, combat, enemies, collectibles, level completion, power-ups.
 
-**Next Up**: Phase 2 - Level System & Tiles (proper level loading from JSON)
+**Next Up**: Phase 7 - Advanced Enemies & Boss (Officer AI, Cannon, Admiral boss fight)
 
 ## Code Conventions
 
@@ -76,6 +87,7 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 | GRAVITY | 0.8 | Applied per frame |
 | ATTACK_DURATION | 15 | Frames sword is active |
 | INVINCIBILITY_FRAMES | 60 | 1 second immunity after hit |
+| PARROT_DURATION | 600 | 10 seconds at 60 FPS |
 
 ## Adding New Features
 
@@ -83,15 +95,22 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 1. Add constants to `settings.py`
 2. Create class in `enemies.py` inheriting from `Enemy`
 3. Override `update(player_rect)` for AI behavior
-4. Add to level JSON and level loader
+4. Add to level JSON and `load_from_file()` in `level.py`
 
 ### New Collectible
 1. Create class in `collectibles.py` inheriting from `Collectible`
 2. Override `collect(player)` returning effect dict
-3. Handle effect in `level.py` or `game.py`
+3. Add to `load_from_file()` in `level.py`
+4. Handle effects in `game.py` (score, power-ups)
 
 ### New Power-up
-1. Add to `LootChest.collect()` in `collectibles.py`
-2. Add player state (e.g., `player.has_X`, `player.X_timer`)
-3. Add logic in `game.py` update loop
-4. Add UI indicator in `ui.py`
+1. Add power-up entity class to `powerups.py` if needed (like Parrot)
+2. Add to `LootChest.collect()` in `collectibles.py`
+3. Add player state (e.g., `player.has_X`, `player.X_timer`)
+4. Add logic in `game.py` update loop
+5. Add UI indicator in `ui.py` `_draw_powerup()` or `_draw_powerup_static()`
+
+### Current Power-ups
+- **Parrot** - Follows player, auto-attacks nearby enemies (timed)
+- **Grog Rage** - 2x damage multiplier (timed)
+- **Ghost Shield** - Absorbs one hit (until used)

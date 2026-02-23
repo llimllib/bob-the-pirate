@@ -9,6 +9,7 @@ from game.player import Player
 from game.level import Level
 from game.camera import Camera
 from game.ui import HUD
+from game.powerups import Parrot, GhostShield
 
 
 class GameState:
@@ -40,17 +41,44 @@ class Game:
         self.camera = None
         self.hud = HUD()
         
+        # Score tracking
+        self.score = 0
+        
+        # Power-up entities
+        self.parrot = None
+        self.shield = None
+        
         # Fonts
         self.title_font = pygame.font.Font(None, 72)
         self.menu_font = pygame.font.Font(None, 36)
 
-    def new_game(self) -> None:
+    def _try_damage_player(self, amount: int = 1) -> bool:
+        """
+        Try to damage the player, checking for shield first.
+        Returns True if damage was processed (blocked or applied).
+        """
+        if self.player.invincible:
+            return False
+        
+        # Check shield first
+        if self.shield and self.player.has_shield:
+            if self.shield.absorb_hit():
+                self.player.has_shield = False
+                self.shield = None
+                return True
+        
+        return self.player.take_damage(amount)
+
+    def new_game(self, level_file: str = "levels/level1.json") -> None:
         """Start a new game."""
         self.level = Level()
-        self.level.create_test_level()
+        self.level.load_from_file(level_file)
         
         self.player = Player(*self.level.player_start)
         self.camera = Camera(self.level.width, self.level.height)
+        self.score = 0
+        self.parrot = None
+        self.shield = None
         
         self.state = GameState.PLAYING
 
@@ -136,17 +164,39 @@ class Game:
         self.level.update(self.player)
         
         # Check collectibles
-        self.level.collect_item(self.player)
+        collected = self.level.collect_item(self.player)
+        for item in collected:
+            if "points" in item:
+                self.score += item["points"]
+            if item.get("powerup") == "parrot":
+                self.parrot = Parrot(self.player)
+            if item.get("powerup") == "shield":
+                self.shield = GhostShield(self.player)
+        
+        # Update parrot companion
+        if self.parrot:
+            if self.player.has_parrot:
+                self.parrot.update(self.level.enemies)
+            else:
+                self.parrot = None
+        
+        # Update shield
+        if self.shield:
+            if self.player.has_shield:
+                self.shield.update()
+            else:
+                self.shield = None
         
         # Check enemy collisions
         for enemy in self.level.enemies:
             if self.player.rect.colliderect(enemy.rect):
-                self.player.take_damage()
+                if self._try_damage_player(1):
+                    pass  # Damage was applied or blocked
         
         # Check projectile collisions
         for projectile in self.level.projectiles:
             if self.player.rect.colliderect(projectile.rect):
-                if self.player.take_damage(projectile.damage):
+                if self._try_damage_player(projectile.damage):
                     projectile.kill()
         
         # Check attack hits
@@ -155,7 +205,8 @@ class Game:
             if attack_box:
                 for enemy in self.level.enemies:
                     if attack_box.colliderect(enemy.rect):
-                        enemy.take_damage(1)
+                        damage = 1 * self.player.damage_multiplier
+                        enemy.take_damage(damage)
         
         # Check death (fell off level)
         if self.player.rect.top > self.level.height + 100:
@@ -164,6 +215,11 @@ class Game:
         # Check game over
         if self.player.lives <= 0:
             self.state = GameState.GAME_OVER
+        
+        # Check level complete (touching unlocked exit)
+        if self.level.exit_door and not self.level.exit_door.locked:
+            if self.player.rect.colliderect(self.level.exit_door.rect):
+                self.state = GameState.LEVEL_COMPLETE
         
         # Update camera
         self.camera.update(self.player.rect)
@@ -227,8 +283,16 @@ class Game:
         # Draw player
         self.player.draw(self.screen, offset)
         
+        # Draw shield effect
+        if self.shield and self.player.has_shield:
+            self.shield.draw(self.screen, offset)
+        
+        # Draw parrot companion
+        if self.parrot and self.player.has_parrot:
+            self.parrot.draw(self.screen, offset)
+        
         # Draw HUD
-        self.hud.draw(self.screen, self.player, self.level)
+        self.hud.draw(self.screen, self.player, self.level, self.score)
 
     def _draw_pause_overlay(self) -> None:
         """Draw pause menu overlay."""
