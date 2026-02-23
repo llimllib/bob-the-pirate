@@ -180,6 +180,8 @@ class Game:
                 self.player.attacking = False
         if self.player.attack_cooldown > 0:
             self.player.attack_cooldown -= 1
+        if self.player.hurt_timer > 0:
+            self.player.hurt_timer -= 1
         if self.player.invincible:
             self.player.invincibility_timer -= 1
             if self.player.invincibility_timer <= 0:
@@ -188,6 +190,16 @@ class Game:
             self.player.parrot_timer -= 1
             if self.player.parrot_timer <= 0:
                 self.player.has_parrot = False
+        if self.player.has_grog:
+            self.player.grog_timer -= 1
+            if self.player.grog_timer <= 0:
+                self.player.has_grog = False
+                self.player.damage_multiplier = 1
+
+        # Update player animation
+        self.player._update_animation_state()
+        self.player.sprite.update()
+        self.player.image = self.player.sprite.get_frame()
 
         # Update level
         self.level.update(self.player)

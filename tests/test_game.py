@@ -131,3 +131,101 @@ class TestGameStates:
         game.handle_events()
 
         assert game.state == GameState.MENU
+
+
+class TestPlayerAnimationInGame:
+    """Tests for player animation updates in game loop.
+
+    These tests verify that the game loop properly updates the player's
+    animation state. This was a bug where the game.update() method
+    manually handled player physics but forgot to call the animation update.
+    """
+
+    def test_game_update_calls_animation_update(self):
+        """Game update loop should update player animation state and image.
+
+        This test catches a bug where game.update() manually handled player
+        physics but forgot to call the animation update methods.
+        """
+        game = Game()
+        game.new_game("levels/level1.json")
+
+        # Force player into a known falling state
+        game.player.on_ground = False
+        game.player.velocity_y = 5
+
+        # Set animation state
+        game.player.sprite.play("fall")
+
+        # Run game update
+        game.update()
+
+        # Animation state should be set correctly
+        assert game.player.sprite.current_animation == "fall"
+
+        # Image should be from the animation (32x48, not 1x1)
+        assert game.player.image.get_width() == 32
+        assert game.player.image.get_height() == 48
+
+    def test_game_update_changes_animation_on_jump(self):
+        """Game should switch to jump animation when player jumps."""
+        game = Game()
+        game.new_game("levels/level1.json")
+
+        # Set player to jumping state (negative velocity = going up)
+        game.player.velocity_y = -10
+        game.player.on_ground = False
+
+        game.update()
+
+        # Should be jump animation (rising)
+        assert game.player.sprite.current_animation == "jump"
+
+    def test_game_update_changes_animation_on_fall(self):
+        """Game should switch to fall animation when player falls."""
+        game = Game()
+        game.new_game("levels/level1.json")
+
+        # Set player to falling state (positive velocity = going down)
+        game.player.velocity_y = 10
+        game.player.on_ground = False
+
+        game.update()
+
+        # Should be fall animation
+        assert game.player.sprite.current_animation == "fall"
+
+    def test_game_update_refreshes_player_image(self):
+        """Game update should refresh player image from animation."""
+        game = Game()
+        game.new_game("levels/level1.json")
+
+        # Run multiple updates
+        for _ in range(10):
+            game.update()
+
+        # Image should have been refreshed (new surface object)
+        # Note: might be same object if frame didn't change, so we check it exists
+        assert game.player.image is not None
+        assert game.player.image.get_size() == (32, 48)
+
+    def test_animation_frame_advances_over_time(self):
+        """Animation frame should advance over multiple game updates."""
+        game = Game()
+        game.new_game("levels/level1.json")
+
+        # Track frames seen across many updates
+        frames_seen = set()
+        current_anims = set()
+
+        for _ in range(60):  # One second of game time
+            game.update()
+            anim_name = game.player.sprite.current_animation
+            current_anims.add(anim_name)
+            if anim_name:
+                frames_seen.add(
+                    (anim_name, game.player.sprite.animations[anim_name].current_frame)
+                )
+
+        # Should have seen multiple frame states
+        assert len(frames_seen) > 1, f"Only saw: {frames_seen}"
