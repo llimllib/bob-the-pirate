@@ -1,10 +1,8 @@
 """Collectibles: treasure chests, coins, power-ups."""
 
 import pygame
-from game.settings import (
-    TILE_SIZE, COIN_VALUE, CHEST_POINTS, PARROT_DURATION,
-    YELLOW, RED, GREEN, WHITE
-)
+
+from game.settings import CHEST_POINTS, COIN_VALUE, PARROT_DURATION, TILE_SIZE, WHITE, YELLOW
 
 
 class Collectible(pygame.sprite.Sprite):
@@ -126,7 +124,7 @@ class LootChest(Collectible):
     def collect(self, player) -> dict:
         """Grant power-up to player."""
         super().collect(player)
-        
+
         if self.powerup_type == "parrot":
             player.has_parrot = True
             player.parrot_timer = PARROT_DURATION
@@ -139,7 +137,7 @@ class LootChest(Collectible):
         elif self.powerup_type == "shield":
             player.has_shield = True
             return {"type": "powerup", "powerup": "shield"}
-        
+
         return {"type": "powerup", "powerup": self.powerup_type}
 
 

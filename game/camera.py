@@ -1,7 +1,8 @@
 """Camera system for scrolling levels."""
 
 import pygame
-from game.settings import SCREEN_WIDTH, SCREEN_HEIGHT
+
+from game.settings import SCREEN_HEIGHT, SCREEN_WIDTH
 
 
 class Camera:
@@ -12,7 +13,7 @@ class Camera:
         self.y = 0
         self.level_width = level_width
         self.level_height = level_height
-        
+
         # Smooth follow settings
         self.smoothing = 0.1
         self.dead_zone_x = SCREEN_WIDTH // 4
@@ -23,15 +24,15 @@ class Camera:
         # Target position (center player on screen)
         target_x = target_rect.centerx - SCREEN_WIDTH // 2
         target_y = target_rect.centery - SCREEN_HEIGHT // 2
-        
+
         # Smooth follow
         self.x += (target_x - self.x) * self.smoothing
         self.y += (target_y - self.y) * self.smoothing
-        
+
         # Clamp to level bounds
         self.x = max(0, min(self.x, self.level_width - SCREEN_WIDTH))
         self.y = max(0, min(self.y, self.level_height - SCREEN_HEIGHT))
-        
+
         # If level is smaller than screen, center it
         if self.level_width < SCREEN_WIDTH:
             self.x = (self.level_width - SCREEN_WIDTH) // 2

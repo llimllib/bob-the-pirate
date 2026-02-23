@@ -219,17 +219,18 @@ Working parrot companion and power-up system.
 
 ---
 
-## Phase 7: Advanced Enemies & Boss
+## Phase 7: Advanced Enemies & Boss ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Officer enemy (chasing AI)
-- [ ] Cannon enemy (arcing projectiles)
-- [ ] Boss: Admiral Blackwood
-  - Health bar
-  - Multiple attack patterns
-  - Phase changes
-- [ ] Boss arena/room
+- [x] Officer enemy (chasing AI with sword attacks)
+- [x] Cannon enemy (arcing projectiles)
+- [x] Boss: Admiral Blackwood
+  - Health bar with phase indicator
+  - Multiple attack patterns (sword, pistol, charge, summon)
+  - 3 phase changes with increasing aggression
+- [x] Boss arena/room (levels/boss_arena.json)
+- [x] Test suite for enemies and boss (tests/)
 
 ### Deliverable
 All enemy types including a functional boss fight.

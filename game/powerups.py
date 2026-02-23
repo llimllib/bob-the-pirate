@@ -1,10 +1,10 @@
 """Power-up entities: Parrot companion, shields, etc."""
 
-import pygame
 import math
-from game.settings import (
-    PARROT_ATTACK_COOLDOWN, PARROT_DAMAGE, GREEN, RED, YELLOW
-)
+
+import pygame
+
+from game.settings import GREEN, PARROT_ATTACK_COOLDOWN, PARROT_DAMAGE, RED, YELLOW
 
 
 class Parrot(pygame.sprite.Sprite):
@@ -16,7 +16,7 @@ class Parrot(pygame.sprite.Sprite):
     def __init__(self, player):
         super().__init__()
         self.player = player
-        
+
         # Visual
         self.image = pygame.Surface((16, 12))
         self.image.fill(GREEN)
@@ -24,16 +24,16 @@ class Parrot(pygame.sprite.Sprite):
         pygame.draw.polygon(self.image, (0, 200, 0), [(8, 0), (16, 6), (8, 6)])
         # Add beak
         pygame.draw.polygon(self.image, YELLOW, [(0, 4), (0, 8), (-4, 6)])
-        
+
         self.rect = self.image.get_rect()
-        
+
         # Movement
         self.offset_x = -20  # Offset from player
         self.offset_y = -30
         self.bob_angle = 0  # For floating animation
         self.bob_speed = 0.1
         self.bob_amount = 5
-        
+
         # Combat
         self.attack_cooldown = 0
         self.attacking = False
@@ -41,7 +41,7 @@ class Parrot(pygame.sprite.Sprite):
         self.attack_start_pos = None
         self.attack_timer = 0
         self.attack_duration = 20  # Frames to complete attack
-        
+
         # Position
         self.x = player.rect.centerx + self.offset_x
         self.y = player.rect.top + self.offset_y
@@ -51,18 +51,18 @@ class Parrot(pygame.sprite.Sprite):
         attack_range = 150
         nearest = None
         nearest_dist = float('inf')
-        
+
         for enemy in enemies:
             if not enemy.active:
                 continue
             dx = enemy.rect.centerx - self.rect.centerx
             dy = enemy.rect.centery - self.rect.centery
             dist = math.sqrt(dx * dx + dy * dy)
-            
+
             if dist < attack_range and dist < nearest_dist:
                 nearest = enemy
                 nearest_dist = dist
-        
+
         return nearest
 
     def update(self, enemies: pygame.sprite.Group) -> pygame.sprite.Sprite | None:
@@ -71,15 +71,15 @@ class Parrot(pygame.sprite.Sprite):
         Returns enemy that was damaged, if any.
         """
         damaged_enemy = None
-        
+
         if self.attacking:
             # Continue attack animation
             self.attack_timer += 1
-            
+
             if self.attack_target and self.attack_target.active:
                 # Lerp towards target
                 progress = self.attack_timer / self.attack_duration
-                
+
                 if progress < 0.5:
                     # Moving towards target
                     t = progress * 2
@@ -87,7 +87,7 @@ class Parrot(pygame.sprite.Sprite):
                     target_y = self.attack_target.rect.centery
                     self.x = self.attack_start_pos[0] + (target_x - self.attack_start_pos[0]) * t
                     self.y = self.attack_start_pos[1] + (target_y - self.attack_start_pos[1]) * t
-                    
+
                     # Check for hit at midpoint
                     if progress >= 0.4 and self.rect.colliderect(self.attack_target.rect):
                         self.attack_target.take_damage(PARROT_DAMAGE)
@@ -101,7 +101,7 @@ class Parrot(pygame.sprite.Sprite):
                     mid_y = self.attack_target.rect.centery
                     self.x = mid_x + (target_x - mid_x) * t
                     self.y = mid_y + (target_y - mid_y) * t
-            
+
             if self.attack_timer >= self.attack_duration:
                 self.attacking = False
                 self.attack_target = None
@@ -109,26 +109,26 @@ class Parrot(pygame.sprite.Sprite):
             # Idle floating near player
             self.bob_angle += self.bob_speed
             bob_offset = math.sin(self.bob_angle) * self.bob_amount
-            
+
             # Follow player with offset
             target_x = self.player.rect.centerx + self.offset_x
             target_y = self.player.rect.top + self.offset_y + bob_offset
-            
+
             # Smooth follow
             self.x += (target_x - self.x) * 0.2
             self.y += (target_y - self.y) * 0.2
-            
+
             # Check for attack
             self.attack_cooldown -= 1
             if self.attack_cooldown <= 0:
                 target = self.find_target(enemies)
                 if target:
                     self.start_attack(target)
-        
+
         # Update rect position
         self.rect.centerx = int(self.x)
         self.rect.centery = int(self.y)
-        
+
         return damaged_enemy
 
     def start_attack(self, target: pygame.sprite.Sprite) -> None:
@@ -142,14 +142,14 @@ class Parrot(pygame.sprite.Sprite):
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the parrot."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
-        
+
         # Flip image based on direction
         img = self.image
         if self.player.facing_right:
             img = pygame.transform.flip(self.image, True, False)
-        
+
         surface.blit(img, draw_rect)
-        
+
         # Draw attack indicator when attacking
         if self.attacking:
             pygame.draw.circle(surface, RED, draw_rect.center, 8, 2)
@@ -185,14 +185,14 @@ class GhostShield:
         """Draw shield effect around player."""
         if not self.active:
             return
-        
+
         # Pulsing shield circle
         pulse = math.sin(self.pulse_angle) * 5
         radius = max(self.player.rect.width, self.player.rect.height) // 2 + 10 + int(pulse)
-        
+
         center_x = self.player.rect.centerx - camera_offset[0]
         center_y = self.player.rect.centery - camera_offset[1]
-        
+
         # Ghost ship colors - translucent blue
         pygame.draw.circle(surface, (100, 150, 200), (center_x, center_y), radius, 3)
         pygame.draw.circle(surface, (150, 200, 255), (center_x, center_y), radius - 3, 1)

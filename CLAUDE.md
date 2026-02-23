@@ -10,6 +10,18 @@ A Megaman-style platformer built with Python and Pygame. Captain Bob the Pirate 
 # Run the game
 uv run python main.py
 
+# Run tests
+uv run python -m pytest tests/ -v
+
+# Run linter
+uv run ruff check .
+
+# Run type checker
+uv run pyright
+
+# Run all checks (do this before committing!)
+uv run ruff check . && uv run pyright && uv run python -m pytest tests/ -v
+
 # Install dependencies
 uv sync
 ```
@@ -19,15 +31,15 @@ uv sync
 ### Core Files
 
 - **`main.py`** - Entry point, just calls `Game().run()`
-- **`game/game.py`** - Main game loop, state machine (MENU, PLAYING, PAUSED, GAME_OVER, LEVEL_COMPLETE)
+- **`game/game.py`** - Main game loop, state machine (MENU, PLAYING, PAUSED, GAME_OVER, LEVEL_COMPLETE, BOSS_DEFEATED)
 - **`game/settings.py`** - All constants (speeds, sizes, colors, timings)
 - **`game/player.py`** - Player class with movement, combat, health, power-up states
-- **`game/enemies.py`** - Enemy classes: Sailor, Musketeer, Officer, Cannon + projectiles
+- **`game/enemies.py`** - Enemy classes: Sailor, Musketeer, Officer, Cannon, Admiral (boss) + projectiles
 - **`game/level.py`** - Level loading from JSON, tile collision (solid + one-way platforms), entity management
 - **`game/collectibles.py`** - TreasureChest, Coin, RumBottle, PirateFlag, LootChest, ExitDoor
 - **`game/powerups.py`** - Parrot companion, GhostShield power-up entities
 - **`game/camera.py`** - Smooth-follow camera system
-- **`game/ui.py`** - HUD rendering (health, lives, treasure counter, score, power-up indicators)
+- **`game/ui.py`** - HUD rendering (health, lives, treasure counter, score, power-up indicators, boss health bar)
 
 ### Game Flow
 
@@ -50,11 +62,12 @@ Level boundaries prevent player from walking off left/right edges.
 Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 - `name` - Level display name
 - `width`, `height` - Level dimensions in pixels
+- `is_boss_level` - (optional) true for boss arenas
 - `tiles[]` - x,y grid positions (multiplied by TILE_SIZE), type: "solid", "platform", "decoration"
-- `enemies[]` - type (sailor/musketeer/officer/cannon), position, optional params (patrol_distance, faces_right)
+- `enemies[]` - type (sailor/musketeer/officer/cannon/admiral), position, optional params (patrol_distance, faces_right, arena_left, arena_right)
 - `collectibles[]` - type (treasure/coin/rum/flag/loot), position, optional powerup type for loot chests
 - `player_start` - [x, y] spawn point
-- `exit` - {x, y} level exit position
+- `exit` - {x, y} level exit position (not needed for boss levels)
 
 ### Tile Types
 - `solid` - Full collision from all directions (brown)
@@ -65,9 +78,9 @@ Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 
 See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap.
 
-**Current Status**: Phases 1-6 complete. Full gameplay loop working: movement, combat, enemies, collectibles, level completion, power-ups.
+**Current Status**: Phases 1-7 complete. Full gameplay loop with boss fight working.
 
-**Next Up**: Phase 7 - Advanced Enemies & Boss (Officer AI, Cannon, Admiral boss fight)
+**Next Up**: Phase 8 - Complete Levels (design 4 themed levels with progression)
 
 ## Code Conventions
 
@@ -76,6 +89,9 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 - Constants in SCREAMING_SNAKE_CASE in `settings.py`
 - Sprites inherit from `pygame.sprite.Sprite`
 - All drawable objects have `draw(surface, camera_offset)` method
+- **Always write tests for new behavior** - add tests to `tests/` directory
+- **Run all checks before committing**: `uv run ruff check . && uv run pyright && uv run python -m pytest tests/ -v`
+- All tests must pass, ruff must report no errors, pyright must report no errors
 
 ## Key Constants (settings.py)
 

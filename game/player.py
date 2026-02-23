@@ -1,10 +1,21 @@
 """Player character: Captain Bob."""
 
 import pygame
+
 from game.settings import (
-    PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_SPEED, PLAYER_JUMP_POWER,
-    PLAYER_MAX_HEALTH, GRAVITY, MAX_FALL_SPEED, INVINCIBILITY_FRAMES,
-    ATTACK_DURATION, ATTACK_COOLDOWN, ATTACK_RANGE, BROWN, YELLOW, RED
+    ATTACK_COOLDOWN,
+    ATTACK_DURATION,
+    ATTACK_RANGE,
+    BROWN,
+    GRAVITY,
+    INVINCIBILITY_FRAMES,
+    MAX_FALL_SPEED,
+    PLAYER_HEIGHT,
+    PLAYER_JUMP_POWER,
+    PLAYER_MAX_HEALTH,
+    PLAYER_SPEED,
+    PLAYER_WIDTH,
+    YELLOW,
 )
 
 
@@ -13,30 +24,30 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self, x: int, y: int):
         super().__init__()
-        
+
         # Visual
         self.image = pygame.Surface((PLAYER_WIDTH, PLAYER_HEIGHT))
         self.image.fill(BROWN)
         self.rect = self.image.get_rect(topleft=(x, y))
-        
+
         # Movement
         self.velocity_x = 0
         self.velocity_y = 0
         self.on_ground = False
         self.facing_right = True
-        
+
         # Stats
         self.max_health = PLAYER_MAX_HEALTH
         self.health = self.max_health
         self.lives = 3
-        
+
         # Combat
         self.attacking = False
         self.attack_timer = 0
         self.attack_cooldown = 0
         self.invincible = False
         self.invincibility_timer = 0
-        
+
         # Power-ups
         self.has_parrot = False
         self.parrot_timer = 0
@@ -55,7 +66,7 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.velocity_x = PLAYER_SPEED
             self.facing_right = True
-        
+
         # Jumping
         if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_ground:
             self.velocity_y = PLAYER_JUMP_POWER
@@ -68,18 +79,18 @@ class Player(pygame.sprite.Sprite):
         """
         if self.attack_cooldown > 0 or self.attacking:
             return None
-        
+
         self.attacking = True
         self.attack_timer = ATTACK_DURATION
         self.attack_cooldown = ATTACK_COOLDOWN
-        
+
         return self.get_attack_hitbox()
 
     def get_attack_hitbox(self) -> pygame.Rect | None:
         """Get the current attack hitbox if attacking."""
         if not self.attacking:
             return None
-        
+
         if self.facing_right:
             return pygame.Rect(
                 self.rect.right,
@@ -102,14 +113,14 @@ class Player(pygame.sprite.Sprite):
         """
         if self.invincible:
             return False
-        
+
         self.health -= amount
         self.invincible = True
         self.invincibility_timer = INVINCIBILITY_FRAMES
-        
+
         if self.health <= 0:
             self.die()
-        
+
         return True
 
     def die(self) -> None:
@@ -136,34 +147,34 @@ class Player(pygame.sprite.Sprite):
         self.velocity_y += GRAVITY
         if self.velocity_y > MAX_FALL_SPEED:
             self.velocity_y = MAX_FALL_SPEED
-        
+
         # Update attack state
         if self.attacking:
             self.attack_timer -= 1
             if self.attack_timer <= 0:
                 self.attacking = False
-        
+
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
-        
+
         # Update invincibility
         if self.invincible:
             self.invincibility_timer -= 1
             if self.invincibility_timer <= 0:
                 self.invincible = False
-        
+
         # Update power-ups
         if self.has_parrot:
             self.parrot_timer -= 1
             if self.parrot_timer <= 0:
                 self.has_parrot = False
-        
+
         if self.has_grog:
             self.grog_timer -= 1
             if self.grog_timer <= 0:
                 self.has_grog = False
                 self.damage_multiplier = 1
-        
+
         # Move (collision handled by level)
         self.rect.x += int(self.velocity_x)
         self.rect.y += int(self.velocity_y)
@@ -171,14 +182,14 @@ class Player(pygame.sprite.Sprite):
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the player to the screen."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
-        
+
         # Flash when invincible
         if self.invincible and self.invincibility_timer % 10 < 5:
             return  # Skip drawing for flash effect
-        
+
         # Draw player
         surface.blit(self.image, draw_rect)
-        
+
         # Draw attack visual
         if self.attacking:
             attack_hitbox = self.get_attack_hitbox()
