@@ -464,32 +464,35 @@ class Game:
         self.screen.fill(SKY_BLUE)
 
         title = self.title_font.render("BOB THE PIRATE", True, BLACK)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 100))
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
         self.screen.blit(title, title_rect)
 
         subtitle = self.menu_font.render("A Pirate's Quest for Treasure", True, (50, 50, 50))
-        sub_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 160))
+        sub_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 110))
         self.screen.blit(subtitle, sub_rect)
 
         # Level selection
         level_title = self.menu_font.render("Select Level (UP/DOWN):", True, BLACK)
-        self.screen.blit(level_title, (SCREEN_WIDTH // 2 - 130, 210))
+        self.screen.blit(level_title, (SCREEN_WIDTH // 2 - 130, 150))
 
         for i, (_, name, _) in enumerate(self.available_levels):
             color = (255, 215, 0) if i == self.selected_level else WHITE
             prefix = "> " if i == self.selected_level else "  "
             level_text = self.menu_font.render(f"{prefix}{name}", True, color)
-            self.screen.blit(level_text, (SCREEN_WIDTH // 2 - 100, 250 + i * 35))
+            self.screen.blit(level_text, (SCREEN_WIDTH // 2 - 150, 185 + i * 30))
+
+        # Position prompts below level list
+        prompt_y = 185 + len(self.available_levels) * 30 + 20
 
         start_text = self.menu_font.render("Press ENTER to Start", True, WHITE)
-        start_rect = start_text.get_rect(center=(SCREEN_WIDTH // 2, 400))
+        start_rect = start_text.get_rect(center=(SCREEN_WIDTH // 2, prompt_y))
         self.screen.blit(start_text, start_rect)
 
         quit_text = self.menu_font.render("Press ESC to Quit", True, WHITE)
-        quit_rect = quit_text.get_rect(center=(SCREEN_WIDTH // 2, 440))
+        quit_rect = quit_text.get_rect(center=(SCREEN_WIDTH // 2, prompt_y + 35))
         self.screen.blit(quit_text, quit_rect)
 
-        # Controls
+        # Controls - bottom left
         controls = [
             "Controls:",
             "Arrow Keys / WASD - Move",
@@ -498,7 +501,7 @@ class Game:
         ]
         for i, line in enumerate(controls):
             text = self.menu_font.render(line, True, (30, 30, 30))
-            self.screen.blit(text, (50, 480 + i * 30))
+            self.screen.blit(text, (50, 480 + i * 28))
 
     def _draw_game(self) -> None:
         """Draw the gameplay screen."""
