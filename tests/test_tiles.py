@@ -234,6 +234,32 @@ class TestBackgroundTypes:
         assert level.background_type == "ship_interior"
 
 
+class TestMetalPlatform:
+    """Tests for metal platform support."""
+
+    def test_metal_platform_in_tileset(self):
+        """Test that metal_platform is in the tileset."""
+        tiles = TileSprites()
+        sprite = tiles.get("metal_platform")
+        assert sprite is not None
+        assert isinstance(sprite, pygame.Surface)
+
+    def test_metal_platform_type_becomes_platform(self):
+        """Test that metal_platform type is treated as platform for collision."""
+        from game.level import Level
+
+        level = Level()
+        level.load_from_file("levels/boss_arena.json")
+
+        # Should have platform tiles (metal_platform becomes platform type)
+        assert len(level.platform_tiles) > 0
+
+        # Check that they have the metal_platform sprite
+        for tile in level.platform_tiles:
+            assert tile.sprite_name == "metal_platform"
+            assert tile.tile_type == "platform"  # Collision type is platform
+
+
 class TestTileDecorationsInLevel:
     """Tests for decoration support in levels."""
 

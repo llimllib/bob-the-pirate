@@ -160,9 +160,10 @@ class Level:
             sprite_name = self._compute_auto_tile_sprite(tile)
             tile.set_sprite(sprite_name)
 
-        # Apply platform sprite
+        # Apply platform sprite (keep existing sprite if already set, e.g., metal_platform)
         for tile in self.platform_tiles:
-            tile.set_sprite("platform")
+            if tile.sprite_name is None:
+                tile.set_sprite("platform")
 
     def load_from_file(self, filepath: str) -> None:
         """Load level from JSON file."""
@@ -196,6 +197,11 @@ class Level:
             tile_type = tile_data.get("type", "solid")
             # Support explicit sprite override from JSON
             sprite_name = tile_data.get("sprite")
+
+            # "metal_platform" is a platform with metal sprite
+            if tile_type == "metal_platform":
+                tile_type = "platform"
+                sprite_name = "metal_platform"
 
             tile = Tile(
                 tile_data["x"] * TILE_SIZE,

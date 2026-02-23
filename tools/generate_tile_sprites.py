@@ -303,6 +303,42 @@ def create_platform():
     return surface
 
 
+def create_metal_platform():
+    """Create metal platform tile for ship interiors (more visible on wood bg)."""
+    surface = create_surface()
+
+    # Main platform (metal grating style)
+    draw_rect(surface, 0, 0, TILE_SIZE, 10, METAL_DARK)
+
+    # Top highlight edge
+    draw_line_h(surface, 0, 0, TILE_SIZE, METAL_LIGHT)
+    draw_line_h(surface, 0, 1, TILE_SIZE, METAL_MID)
+
+    # Bottom edge shadow
+    draw_line_h(surface, 0, 8, TILE_SIZE, (40, 40, 50, 255))
+    draw_line_h(surface, 0, 9, TILE_SIZE, (30, 30, 40, 255))
+
+    # Grating lines (horizontal bars)
+    for y in [3, 5, 7]:
+        draw_line_h(surface, 0, y, TILE_SIZE, METAL_LIGHT)
+
+    # Rivets on edges
+    for x in [2, 8, 14, 20, 26]:
+        draw_rect(surface, x, 2, 2, 2, METAL_LIGHT)
+        draw_pixel(surface, x, 2, (150, 150, 160, 255))  # Highlight
+
+    # Support brackets (chunkier for metal)
+    draw_rect(surface, 0, 10, 6, 6, METAL_DARK)
+    draw_rect(surface, 1, 11, 4, 4, METAL_MID)
+    draw_rect(surface, 2, 12, 2, 2, METAL_LIGHT)
+
+    draw_rect(surface, TILE_SIZE - 6, 10, 6, 6, METAL_DARK)
+    draw_rect(surface, TILE_SIZE - 5, 11, 4, 4, METAL_MID)
+    draw_rect(surface, TILE_SIZE - 4, 12, 2, 2, METAL_LIGHT)
+
+    return surface
+
+
 # =============================================================================
 # DECORATION TILES
 # =============================================================================
@@ -471,10 +507,11 @@ def generate_tileset():
     sheet.blit(create_solid_top_right(), (2 * TILE_SIZE, TILE_SIZE))
     sheet.blit(create_solid_bottom_left(), (3 * TILE_SIZE, TILE_SIZE))
 
-    # Row 2: Corner and platform
+    # Row 2: Corner and platforms
     sheet.blit(create_solid_bottom_right(), (0 * TILE_SIZE, 2 * TILE_SIZE))
     sheet.blit(create_platform(), (1 * TILE_SIZE, 2 * TILE_SIZE))
-    # Slots 2-3 empty for future tiles
+    sheet.blit(create_metal_platform(), (2 * TILE_SIZE, 2 * TILE_SIZE))
+    # Slot 3 empty for future tiles
 
     # Row 3: Decorations
     sheet.blit(create_crate(), (0 * TILE_SIZE, 3 * TILE_SIZE))
@@ -497,6 +534,7 @@ TILE_INDEX = {
     "solid_bottom_left": (3, 1),
     "solid_bottom_right": (0, 2),
     "platform": (1, 2),
+    "metal_platform": (2, 2),
     "crate": (0, 3),
     "barrel": (1, 3),
     "anchor": (2, 3),
@@ -517,7 +555,7 @@ def main():
     print("\nTile layout:")
     print("  Row 0: solid_top, solid_middle, solid_bottom, solid_left")
     print("  Row 1: solid_right, solid_top_left, solid_top_right, solid_bottom_left")
-    print("  Row 2: solid_bottom_right, platform, (empty), (empty)")
+    print("  Row 2: solid_bottom_right, platform, metal_platform, (empty)")
     print("  Row 3: crate, barrel, anchor, rope_coil")
     print("\nTile indices (col, row):")
     for name, (col, row) in TILE_INDEX.items():

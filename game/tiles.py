@@ -40,6 +40,7 @@ class TileSprites:
         "solid_bottom_left": (3, 1),
         "solid_bottom_right": (0, 2),
         "platform": (1, 2),
+        "metal_platform": (2, 2),
         "crate": (0, 3),
         "barrel": (1, 3),
         "anchor": (2, 3),
