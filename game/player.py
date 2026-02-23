@@ -1,12 +1,14 @@
 """Player character: Captain Bob."""
 
+import os
+
 import pygame
 
+from game.animation import AnimatedSprite, Animation, SpriteSheet, create_placeholder_frames
 from game.settings import (
     ATTACK_COOLDOWN,
     ATTACK_DURATION,
     ATTACK_RANGE,
-    BROWN,
     GRAVITY,
     INVINCIBILITY_FRAMES,
     MAX_FALL_SPEED,
@@ -25,9 +27,15 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int):
         super().__init__()
 
-        # Visual
-        self.image = pygame.Surface((PLAYER_WIDTH, PLAYER_HEIGHT))
-        self.image.fill(BROWN)
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+
+        # Start with idle animation
+        self.sprite.play("idle")
+
+        # Visual - image updated each frame from animation
+        self.image = self.sprite.get_frame()
         self.rect = self.image.get_rect(topleft=(x, y))
 
         # Movement
@@ -47,6 +55,7 @@ class Player(pygame.sprite.Sprite):
         self.attack_cooldown = 0
         self.invincible = False
         self.invincibility_timer = 0
+        self.hurt_timer = 0  # For hurt animation
 
         # Power-ups
         self.has_parrot = False
@@ -55,6 +64,80 @@ class Player(pygame.sprite.Sprite):
         self.has_grog = False
         self.grog_timer = 0
         self.damage_multiplier = 1
+
+    def _load_animations(self) -> None:
+        """Load player animations from sprite sheet or use placeholders."""
+        sprite_path = "assets/sprites/player.png"
+
+        if os.path.exists(sprite_path):
+            sheet = SpriteSheet(sprite_path)
+
+            # Row 0: Idle (2 frames)
+            idle_frames = sheet.get_strip(0, PLAYER_WIDTH, PLAYER_HEIGHT, 2)
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=15, loop=True))
+
+            # Row 1: Run (4 frames)
+            run_frames = sheet.get_strip(PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT, 4)
+            self.sprite.add_animation("run", Animation(run_frames, frame_duration=6, loop=True))
+
+            # Row 2: Jump, Fall, Hurt
+            jump_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1)
+            self.sprite.add_animation("jump", Animation(jump_frames, frame_duration=1, loop=False))
+
+            fall_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1, x_start=PLAYER_WIDTH)
+            self.sprite.add_animation("fall", Animation(fall_frames, frame_duration=1, loop=False))
+
+            hurt_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1, x_start=PLAYER_WIDTH * 2)
+            self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=8, loop=False))
+
+            # Row 3: Attack (3 frames)
+            attack_frames = sheet.get_strip(PLAYER_HEIGHT * 3, PLAYER_WIDTH, PLAYER_HEIGHT, 3)
+            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
+        else:
+            # Use placeholder frames if sprite sheet not found
+            self._load_placeholder_animations()
+
+    def _load_placeholder_animations(self) -> None:
+        """Load placeholder colored rectangle animations."""
+        brown = (139, 69, 19)
+
+        idle_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 2, "idle")
+        self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=15, loop=True))
+
+        run_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 4, "run")
+        self.sprite.add_animation("run", Animation(run_frames, frame_duration=6, loop=True))
+
+        jump_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 1, "jump")
+        self.sprite.add_animation("jump", Animation(jump_frames, frame_duration=1, loop=False))
+
+        fall_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, brown, 1, "fall")
+        self.sprite.add_animation("fall", Animation(fall_frames, frame_duration=1, loop=False))
+
+        hurt_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (200, 50, 50), 1, "hurt")
+        self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=8, loop=False))
+
+        attack_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (200, 150, 50), 3, "atk")
+        self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
+
+    def _update_animation_state(self) -> None:
+        """Update which animation should be playing based on player state."""
+        # Priority: hurt > attack > jump/fall > run > idle
+        if self.hurt_timer > 0:
+            self.sprite.play("hurt")
+        elif self.attacking:
+            self.sprite.play("attack")
+        elif not self.on_ground:
+            if self.velocity_y < 0:
+                self.sprite.play("jump")
+            else:
+                self.sprite.play("fall")
+        elif self.velocity_x != 0:
+            self.sprite.play("run")
+        else:
+            self.sprite.play("idle")
+
+        # Update facing direction
+        self.sprite.facing_right = self.facing_right
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
         """Process keyboard input for movement and actions."""
@@ -83,6 +166,9 @@ class Player(pygame.sprite.Sprite):
         self.attacking = True
         self.attack_timer = ATTACK_DURATION
         self.attack_cooldown = ATTACK_COOLDOWN
+
+        # Force attack animation to restart
+        self.sprite.play("attack", force_restart=True)
 
         return self.get_attack_hitbox()
 
@@ -117,6 +203,7 @@ class Player(pygame.sprite.Sprite):
         self.health -= amount
         self.invincible = True
         self.invincibility_timer = INVINCIBILITY_FRAMES
+        self.hurt_timer = 20  # Show hurt animation for 20 frames
 
         if self.health <= 0:
             self.die()
@@ -135,6 +222,7 @@ class Player(pygame.sprite.Sprite):
         self.health = self.max_health
         self.invincible = True
         self.invincibility_timer = INVINCIBILITY_FRAMES * 2
+        self.hurt_timer = 0
         # Position reset handled by level manager
 
     def heal(self, amount: int = 1) -> None:
@@ -156,6 +244,10 @@ class Player(pygame.sprite.Sprite):
 
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
+
+        # Update hurt timer
+        if self.hurt_timer > 0:
+            self.hurt_timer -= 1
 
         # Update invincibility
         if self.invincible:
@@ -179,18 +271,23 @@ class Player(pygame.sprite.Sprite):
         self.rect.x += int(self.velocity_x)
         self.rect.y += int(self.velocity_y)
 
+        # Update animation
+        self._update_animation_state()
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the player to the screen."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
 
-        # Flash when invincible
-        if self.invincible and self.invincibility_timer % 10 < 5:
+        # Flash when invincible (but not during hurt animation)
+        if self.invincible and self.hurt_timer <= 0 and self.invincibility_timer % 10 < 5:
             return  # Skip drawing for flash effect
 
-        # Draw player
+        # Draw player sprite
         surface.blit(self.image, draw_rect)
 
-        # Draw attack visual
+        # Draw attack hitbox (debug, can be removed later)
         if self.attacking:
             attack_hitbox = self.get_attack_hitbox()
             if attack_hitbox:

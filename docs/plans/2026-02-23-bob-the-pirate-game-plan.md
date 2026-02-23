@@ -248,14 +248,16 @@ All enemy types including a functional boss fight.
 - [x] Placeholder frame generator for testing
 - [x] Tests in `tests/test_animation.py`
 
-### Phase 8B: Player Sprites - Captain Bob (32x48)
-- [ ] Idle animation (2 frames)
-- [ ] Run animation (4 frames)
-- [ ] Jump frame (1 frame, rising)
-- [ ] Fall frame (1 frame, falling)
-- [ ] Attack/slash animation (3 frames)
-- [ ] Hurt frame (1 frame)
-- [ ] Integrate into Player class
+### Phase 8B: Player Sprites - Captain Bob (32x48) ✅
+- [x] Idle animation (2 frames)
+- [x] Run animation (4 frames)
+- [x] Jump frame (1 frame, rising)
+- [x] Fall frame (1 frame, falling)
+- [x] Attack/slash animation (3 frames)
+- [x] Hurt frame (1 frame)
+- [x] Integrate into Player class
+- [x] Sprite generator tool: `tools/generate_player_sprites.py`
+- [x] Comprehensive Player tests: `tests/test_player.py` (48 tests)
 
 ### Phase 8C: Tiles & Environment (32x32)
 - [ ] Solid ground tiles (top, middle, edges, corners)
