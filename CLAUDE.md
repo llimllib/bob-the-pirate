@@ -69,6 +69,7 @@ Useful for diagnosing:
 - **`game/powerups.py`** - Parrot companion, GhostShield power-up entities
 - **`game/camera.py`** - Smooth-follow camera system
 - **`game/ui.py`** - HUD rendering (health, lives, treasure counter, score, power-up indicators, boss health bar)
+- **`game/audio.py`** - Audio manager for sound effects and music playback
 
 ### Game Flow
 
@@ -107,7 +108,7 @@ Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 
 See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap.
 
-**Current Status**: Phases 1-9 complete. Full gameplay with 6 levels, miniboss, and final boss.
+**Current Status**: Phases 1-9 and 11 complete. Full gameplay with 6 levels, miniboss, final boss, and full audio.
 
 **Levels Available**:
 1. Port Town (Tutorial)
@@ -117,7 +118,7 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 5. Governor's Mansion (Challenge)
 6. Admiral's Quarters (Final Boss)
 
-**Next Up**: Phase 10 - Menus & UI Polish
+**Next Up**: Phase 8G (Effects) and Phase 10 (Menus & UI Polish)
 
 ## Code Conventions
 
@@ -141,6 +142,8 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 | ATTACK_DURATION | 15 | Frames sword is active |
 | INVINCIBILITY_FRAMES | 60 | 1 second immunity after hit |
 | PARROT_DURATION | 600 | 10 seconds at 60 FPS |
+| SFX_VOLUME | 0.7 | Default sound effect volume |
+| MUSIC_VOLUME | 0.5 | Default music volume |
 
 ## Adding New Features
 
@@ -155,6 +158,19 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 2. Override `collect(player)` returning effect dict
 3. Add to `load_from_file()` in `level.py`
 4. Handle effects in `game.py` (score, power-ups)
+
+### Playing Audio
+```python
+from game.audio import play_sound, play_music, stop_music
+
+play_sound("jump")           # Play sound effect
+play_music("level1.wav")     # Start background music (loops)
+stop_music()                 # Stop music
+```
+
+**Available Sounds**: jump, land, slash, hit, hurt, death, coin, treasure, powerup, health, extra_life, enemy_death, shoot, cannon, parrot_attack, shield_hit, boss_hit, boss_death, door_unlock, menu_select, menu_confirm, level_complete, game_over
+
+**Available Music**: menu.wav, level1.wav, level2.wav, level3.wav, level4.wav, level5.wav, boss.wav, victory.wav
 
 ### New Power-up
 1. Add power-up entity class to `powerups.py` if needed (like Parrot)

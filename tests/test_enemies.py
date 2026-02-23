@@ -669,3 +669,80 @@ class TestProjectiles:
         assert bullet.rect.x > 100
         # Y should be unchanged (no gravity)
         assert bullet.rect.y == initial_y
+
+
+class MockPlayer:
+    """Mock player for testing level updates."""
+    def __init__(self, x: int, y: int):
+        self.rect = pygame.Rect(x, y, 32, 48)
+
+
+class TestEnemyGravity:
+    """Tests for enemy gravity and ground collision."""
+
+    def test_sailor_falls_to_ground(self):
+        """Test that a sailor placed in the air falls to the ground."""
+        from game.level import Level
+
+        level = Level()
+        # Create a simple ground
+        level.create_test_level()
+
+        # Place a sailor in the air (should fall)
+        sailor = Sailor(100, 100, patrol_distance=50)  # High in the air
+        level.enemies.add(sailor)
+
+        initial_y = sailor.rect.y
+
+        # Update several times to let gravity work
+        mock_player = MockPlayer(500, 400)
+        for _ in range(60):
+            level.update(mock_player)
+
+        # Sailor should have fallen
+        assert sailor.rect.y > initial_y
+
+    def test_sailor_stops_on_ground(self):
+        """Test that a sailor stops when hitting the ground."""
+        from game.level import Level
+        from game.settings import SCREEN_HEIGHT, TILE_SIZE
+
+        level = Level()
+        level.create_test_level()
+
+        # Ground is at y = SCREEN_HEIGHT - TILE_SIZE = 568
+        ground_top = SCREEN_HEIGHT - TILE_SIZE
+
+        # Place sailor above ground
+        sailor = Sailor(100, 200, patrol_distance=50)
+        level.enemies.add(sailor)
+
+        # Update many times
+        mock_player = MockPlayer(500, 400)
+        for _ in range(120):
+            level.update(mock_player)
+
+        # Sailor should be on the ground (bottom at ground level)
+        assert sailor.rect.bottom <= ground_top + 1  # Allow 1 pixel tolerance
+
+    def test_cannon_does_not_fall(self):
+        """Test that cannons don't have gravity applied (they're mounted)."""
+        from game.level import Level
+
+        level = Level()
+        level.create_test_level()
+
+        # Create projectile group for cannon
+        projectiles = pygame.sprite.Group()
+        cannon = Cannon(100, 200, projectiles, faces_right=True)
+        level.enemies.add(cannon)
+
+        initial_y = cannon.rect.y
+
+        # Update several times
+        mock_player = MockPlayer(500, 400)
+        for _ in range(60):
+            level.update(mock_player)
+
+        # Cannon should NOT have fallen
+        assert cannon.rect.y == initial_y

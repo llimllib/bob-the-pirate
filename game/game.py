@@ -2,6 +2,7 @@
 
 import pygame
 
+from game.audio import get_audio_manager, play_music, play_sound, stop_music
 from game.camera import Camera
 from game.level import Level
 from game.player import Player
@@ -59,14 +60,24 @@ class Game:
 
         # Level selection for menu
         self.available_levels = [
-            ("levels/level1.json", "1 - Port Town"),
-            ("levels/level2.json", "2 - HMS Revenge"),
-            ("levels/level3.json", "3 - Cliff Fortress"),
-            ("levels/level4.json", "4 - The Armory (Miniboss)"),
-            ("levels/level5.json", "5 - Governor's Mansion"),
-            ("levels/boss_arena.json", "B - Admiral's Quarters (Boss)"),
+            ("levels/level1.json", "1 - Port Town", "level1.wav"),
+            ("levels/level2.json", "2 - HMS Revenge", "level2.wav"),
+            ("levels/level3.json", "3 - Cliff Fortress", "level3.wav"),
+            ("levels/level4.json", "4 - The Armory (Miniboss)", "level4.wav"),
+            ("levels/level5.json", "5 - Governor's Mansion", "level5.wav"),
+            ("levels/boss_arena.json", "B - Admiral's Quarters (Boss)", "boss.wav"),
         ]
         self.selected_level = 0
+
+        # Track player states for sound triggers
+        self.was_on_ground = True
+        self.was_jumping = False
+
+        # Initialize audio manager
+        self.audio = get_audio_manager()
+
+        # Play menu music
+        play_music("menu.wav")
 
     def _try_damage_player(self, amount: int = 1) -> bool:
         """
@@ -81,9 +92,16 @@ class Game:
             if self.shield.absorb_hit():
                 self.player.has_shield = False
                 self.shield = None
+                play_sound("shield_hit")
                 return True
 
-        return self.player.take_damage(amount)
+        if self.player.take_damage(amount):
+            if self.player.health > 0:
+                play_sound("hurt")
+            else:
+                play_sound("death")
+            return True
+        return False
 
     def _spawn_boss_minions(self) -> None:
         """Spawn sailors when the boss summons."""
@@ -113,9 +131,22 @@ class Game:
         self.parrot = None
         self.shield = None
 
+        # Reset sound state tracking
+        self.was_on_ground = True
+        self.was_jumping = False
+
         # Load background layers (lazy init) and set type based on level
         self.backgrounds = get_background_layers()
         self.backgrounds.set_background_type(self.level.background_type)
+
+        # Find and play appropriate music for this level
+        for lf, _, music in self.available_levels:
+            if lf == level_file:
+                play_music(music)
+                break
+
+        # Track projectile count for sound triggers
+        self.last_projectile_count = 0
 
         self.state = GameState.PLAYING
 
@@ -128,11 +159,14 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if self.state == GameState.MENU:
                     if event.key == pygame.K_RETURN:
+                        play_sound("menu_confirm")
                         level_file = self.available_levels[self.selected_level][0]
                         self.new_game(level_file)
                     elif event.key == pygame.K_UP:
+                        play_sound("menu_select")
                         self.selected_level = (self.selected_level - 1) % len(self.available_levels)
                     elif event.key == pygame.K_DOWN:
+                        play_sound("menu_select")
                         self.selected_level = (self.selected_level + 1) % len(self.available_levels)
                     elif event.key == pygame.K_ESCAPE:
                         self.running = False
@@ -140,29 +174,39 @@ class Game:
                 elif self.state == GameState.PLAYING:
                     if event.key == pygame.K_ESCAPE:
                         self.state = GameState.PAUSED
+                        self.audio.pause_music()
                     elif event.key == pygame.K_q:
-                        self.player.attack()
+                        if self.player.attack():
+                            play_sound("slash")
 
                 elif self.state == GameState.PAUSED:
                     if event.key == pygame.K_ESCAPE:
                         self.state = GameState.PLAYING
+                        self.audio.unpause_music()
                     elif event.key == pygame.K_q:
                         self.state = GameState.MENU
+                        play_music("menu.wav")
 
                 elif self.state == GameState.GAME_OVER:
                     if event.key == pygame.K_RETURN:
+                        play_sound("menu_confirm")
                         self.new_game()
                     elif event.key == pygame.K_ESCAPE:
                         self.state = GameState.MENU
+                        play_music("menu.wav")
 
                 elif self.state == GameState.LEVEL_COMPLETE:
                     if event.key == pygame.K_RETURN:
+                        play_sound("menu_confirm")
                         # TODO: Load next level
                         self.state = GameState.MENU
+                        play_music("menu.wav")
 
                 elif self.state == GameState.BOSS_DEFEATED:
                     if event.key == pygame.K_RETURN:
+                        play_sound("menu_confirm")
                         self.state = GameState.MENU
+                        play_music("menu.wav")
 
     def update(self) -> None:
         """Update game state."""
@@ -185,6 +229,18 @@ class Game:
         # Move Y
         self.player.rect.y += int(self.player.velocity_y)
         self.level.check_collision_y(self.player)
+
+        # Sound: detect jump and landing
+        if not self.was_on_ground and self.player.on_ground:
+            # Just landed
+            play_sound("land")
+        if self.player.velocity_y < 0 and not self.was_jumping:
+            # Just started jumping
+            play_sound("jump")
+
+        # Track states for next frame
+        self.was_on_ground = self.player.on_ground
+        self.was_jumping = self.player.velocity_y < 0
 
         # Update player timers
         if self.player.attacking:
@@ -217,6 +273,25 @@ class Game:
         # Update level
         self.level.update(self.player)
 
+        # Check for door unlock sound
+        if self.level.door_just_unlocked:
+            play_sound("door_unlock")
+            self.level.door_just_unlocked = False
+
+        # Check for new projectiles (enemy shots)
+        current_projectile_count = len(self.level.projectiles)
+        if current_projectile_count > self.last_projectile_count:
+            # New projectile was fired - play appropriate sound
+            # Check what type by looking at the newest projectile
+            for proj in self.level.projectiles:
+                if proj.__class__.__name__ == "Cannonball":
+                    play_sound("cannon")
+                    break
+                elif proj.__class__.__name__ in ("MusketBall", "AdmiralBullet"):
+                    play_sound("shoot")
+                    break
+        self.last_projectile_count = current_projectile_count
+
         # Check collectibles
         collected = self.level.collect_item(self.player)
         for item in collected:
@@ -224,13 +299,32 @@ class Game:
                 self.score += item["points"]
             if item.get("powerup") == "parrot":
                 self.parrot = Parrot(self.player)
+                play_sound("powerup")
             if item.get("powerup") == "shield":
                 self.shield = GhostShield(self.player)
+                play_sound("powerup")
+            if item.get("powerup") == "grog":
+                play_sound("powerup")
+
+            # Play appropriate collection sound
+            item_type = item.get("type")
+            if item_type == "treasure":
+                play_sound("treasure")
+            elif item_type == "coin":
+                play_sound("coin")
+            elif item_type == "health":
+                play_sound("health")
+            elif item_type == "life":
+                play_sound("extra_life")
 
         # Update parrot companion
         if self.parrot:
             if self.player.has_parrot:
-                self.parrot.update(self.level.enemies)
+                damaged_enemy = self.parrot.update(self.level.enemies)
+                if damaged_enemy:
+                    play_sound("parrot_attack")
+                    if not damaged_enemy.active:
+                        play_sound("enemy_death")
             else:
                 self.parrot = None
 
@@ -283,6 +377,8 @@ class Game:
                 # Boss is dead!
                 self.state = GameState.BOSS_DEFEATED
                 self.score += 1000  # Boss bonus
+                play_sound("boss_death")
+                play_music("victory.wav")
 
         # Check projectile collisions
         for projectile in self.level.projectiles:
@@ -299,8 +395,22 @@ class Game:
                     if enemy_id not in self.player.enemies_hit_this_attack:
                         if attack_box.colliderect(enemy.rect):
                             damage = int(1 * self.player.damage_multiplier)
-                            enemy.take_damage(damage)
+                            was_alive = enemy.health > 0
+                            killed = enemy.take_damage(damage)
                             self.player.enemies_hit_this_attack.add(enemy_id)
+                            if was_alive:
+                                if killed:
+                                    # Check if it's the boss
+                                    if enemy == self.level.boss:
+                                        play_sound("boss_hit")  # Boss has separate death sound
+                                    else:
+                                        play_sound("enemy_death")
+                                else:
+                                    # Enemy was hit but not killed
+                                    if enemy == self.level.boss:
+                                        play_sound("boss_hit")
+                                    else:
+                                        play_sound("hit")
 
         # Check death (fell off level)
         if self.player.rect.top > self.level.height + 100:
@@ -309,11 +419,15 @@ class Game:
         # Check game over
         if self.player.lives <= 0:
             self.state = GameState.GAME_OVER
+            play_sound("game_over")
+            stop_music()
 
         # Check level complete (touching unlocked exit)
         if self.level.exit_door and not self.level.exit_door.locked:
             if self.player.rect.colliderect(self.level.exit_door.rect):
                 self.state = GameState.LEVEL_COMPLETE
+                play_sound("level_complete")
+                stop_music()
 
         # Update camera
         self.camera.update(self.player.rect)
@@ -361,7 +475,7 @@ class Game:
         level_title = self.menu_font.render("Select Level (UP/DOWN):", True, BLACK)
         self.screen.blit(level_title, (SCREEN_WIDTH // 2 - 130, 210))
 
-        for i, (_, name) in enumerate(self.available_levels):
+        for i, (_, name, _) in enumerate(self.available_levels):
             color = (255, 215, 0) if i == self.selected_level else WHITE
             prefix = "> " if i == self.selected_level else "  "
             level_text = self.menu_font.render(f"{prefix}{name}", True, color)

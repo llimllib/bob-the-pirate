@@ -100,6 +100,9 @@ class Level:
         self.is_boss_level = False
         self.boss = None
 
+        # Door unlock flag (for sound)
+        self.door_just_unlocked = False
+
         # Grid for auto-tiling lookups
         self._tile_grid: dict[tuple[int, int], Tile] = {}
 
@@ -380,10 +383,42 @@ class Level:
                         player.velocity_y = 0
                         break
 
+    def _apply_enemy_gravity(self, enemy) -> None:
+        """Apply gravity and ground collision to an enemy."""
+        # Skip stationary enemies (cannons don't need gravity)
+        if enemy.__class__.__name__ == "Cannon":
+            return
+
+        # Apply gravity
+        enemy.velocity_y += 0.8
+        if enemy.velocity_y > 15:
+            enemy.velocity_y = 15
+
+        # Move vertically
+        enemy.rect.y += int(enemy.velocity_y)
+
+        # Check ground collision
+        for tile in self.solid_tiles:
+            if enemy.rect.colliderect(tile.rect):
+                if enemy.velocity_y > 0:  # Falling
+                    enemy.rect.bottom = tile.rect.top
+                    enemy.velocity_y = 0
+                elif enemy.velocity_y < 0:  # Somehow going up
+                    enemy.rect.top = tile.rect.bottom
+                    enemy.velocity_y = 0
+
+        # Also check platform tiles for enemies
+        for tile in self.platform_tiles:
+            if enemy.rect.colliderect(tile.rect):
+                if enemy.velocity_y > 0:
+                    enemy.rect.bottom = tile.rect.top
+                    enemy.velocity_y = 0
+
     def update(self, player) -> None:
         """Update all level entities."""
-        # Update enemies
+        # Update enemies with gravity
         for enemy in self.enemies:
+            self._apply_enemy_gravity(enemy)
             enemy.update(player.rect)
 
         # Update projectiles
@@ -401,7 +436,9 @@ class Level:
 
         # Check if all treasure collected
         if self.treasure_collected >= self.treasure_total and self.exit_door:
-            self.exit_door.unlock()
+            if self.exit_door.locked:
+                self.exit_door.unlock()
+                self.door_just_unlocked = True
 
     def collect_item(self, player) -> list[dict]:
         """Check for collectible pickups. Returns list of collected item info."""

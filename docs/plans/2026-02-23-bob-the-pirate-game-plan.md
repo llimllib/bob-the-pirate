@@ -380,18 +380,29 @@ Complete menu system and polished UI.
 
 ---
 
-## Phase 11: Audio
+## Phase 11: Audio ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Sound effects
+- [x] Sound effects
   - Jump, land
   - Sword slash, hit
-  - Collect item
-  - Damage taken
+  - Collect item (coin, treasure, powerup, health, extra life)
+  - Damage taken (hurt, death)
   - Enemy death
-- [ ] Background music (per level)
-- [ ] Audio manager with volume control
+  - Boss hit, boss death
+  - Cannon fire, musket shot
+  - Shield block
+  - Parrot attack
+  - Door unlock
+  - Menu sounds
+  - Level complete, game over
+- [x] Background music (per level)
+  - Menu theme
+  - Level 1-5 themes
+  - Boss battle theme
+  - Victory theme
+- [x] Audio manager with volume control (SFX, music, master)
 
 ### Deliverable
 Full audio experience.
