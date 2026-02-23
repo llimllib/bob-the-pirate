@@ -144,6 +144,10 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 | PARROT_DURATION | 600 | 10 seconds at 60 FPS |
 | SFX_VOLUME | 0.7 | Default sound effect volume |
 | MUSIC_VOLUME | 0.5 | Default music volume |
+| BARREL_ROLL_DURATION | 15 | 0.25 seconds |
+| BARREL_ROLL_COOLDOWN | 45 | 0.75 seconds |
+| ANCHOR_SLAM_DAMAGE | 2 | AoE damage on landing |
+| ANCHOR_SLAM_RADIUS | 50 | Damage radius in pixels |
 
 ## Adding New Features
 
@@ -178,6 +182,11 @@ stop_music()                 # Stop music
 3. Add player state (e.g., `player.has_X`, `player.X_timer`)
 4. Add logic in `game.py` update loop
 5. Add UI indicator in `ui.py` `_draw_powerup()` or `_draw_powerup_static()`
+
+### Innate Abilities
+Bob has these abilities from the start:
+- **Barrel Roll** - Double-tap Left/Right to roll with invincibility frames (0.25s roll, 0.75s cooldown)
+- **Anchor Slam** - Press Down while in air to slam down and damage all enemies in radius (2 damage, 50px radius)
 
 ### Current Power-ups
 - **Parrot** - Follows player, auto-attacks nearby enemies (timed, 10s)

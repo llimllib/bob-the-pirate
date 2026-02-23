@@ -8,6 +8,9 @@ from game.level import Level
 from game.player import Player
 from game.powerups import GhostShield, Monkey, Parrot, PlayerCannonball
 from game.settings import (
+    ANCHOR_SLAM_DAMAGE,
+    ANCHOR_SLAM_RADIUS,
+    BARREL_ROLL_COOLDOWN,
     BLACK,
     FPS,
     MAGNET_RANGE,
@@ -85,6 +88,9 @@ class Game:
         self.was_on_ground = True
         self.was_jumping = False
 
+        # Track key states for double-tap detection
+        self.prev_keys: dict[int, bool] = {}
+
         # Initialize audio manager
         self.audio = get_audio_manager()
 
@@ -149,6 +155,9 @@ class Game:
         self.was_on_ground = True
         self.was_jumping = False
 
+        # Reset key tracking
+        self.prev_keys = {}
+
         # Load background layers (lazy init) and set type based on level
         self.backgrounds = get_background_layers()
         self.backgrounds.set_background_type(self.level.background_type)
@@ -207,6 +216,18 @@ class Game:
                         # Double jump (if in air and have power-up)
                         if not self.player.on_ground and self.player.try_double_jump():
                             play_sound("jump")
+                    elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                        # Barrel roll left (double-tap)
+                        if self.player.try_barrel_roll(-1, self.frame_count):
+                            play_sound("jump")  # Roll sound (reuse jump for now)
+                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                        # Barrel roll right (double-tap)
+                        if self.player.try_barrel_roll(1, self.frame_count):
+                            play_sound("jump")  # Roll sound (reuse jump for now)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        # Anchor slam (in air only)
+                        if self.player.try_anchor_slam():
+                            play_sound("slash")  # Slam start sound
 
                 elif self.state == GameState.PAUSED:
                     if event.key == pygame.K_ESCAPE:
@@ -259,6 +280,31 @@ class Game:
         self.player.rect.y += int(self.player.velocity_y)
         self.level.check_collision_y(self.player)
 
+        # Check for anchor slam landing
+        if self.player.on_ground and self.player.land_anchor_slam():
+            play_sound("land")  # Impact sound
+            # Damage all enemies in radius
+            slam_center = self.player.rect.midbottom
+            for enemy in self.level.enemies:
+                # Calculate distance from slam center to enemy center
+                dx = enemy.rect.centerx - slam_center[0]
+                dy = enemy.rect.centery - slam_center[1]
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist <= ANCHOR_SLAM_RADIUS:
+                    was_alive = enemy.health > 0
+                    killed = enemy.take_damage(ANCHOR_SLAM_DAMAGE)
+                    if was_alive:
+                        if killed:
+                            if enemy == self.level.boss:
+                                play_sound("boss_hit")
+                            else:
+                                play_sound("enemy_death")
+                        else:
+                            if enemy == self.level.boss:
+                                play_sound("boss_hit")
+                            else:
+                                play_sound("hit")
+
         # Sound: detect jump and landing
         if not self.was_on_ground and self.player.on_ground:
             # Just landed
@@ -293,6 +339,19 @@ class Game:
             if self.player.grog_timer <= 0:
                 self.player.has_grog = False
                 self.player.damage_multiplier = 1
+
+        # Update barrel roll timer
+        if self.player.rolling:
+            self.player.roll_timer -= 1
+            if self.player.roll_timer <= 0:
+                self.player.rolling = False
+                self.player.roll_cooldown = BARREL_ROLL_COOLDOWN
+        if self.player.roll_cooldown > 0:
+            self.player.roll_cooldown -= 1
+
+        # Update anchor slam cooldown
+        if self.player.slam_cooldown > 0:
+            self.player.slam_cooldown -= 1
 
         # Update player animation
         self.player._update_animation_state()
@@ -580,11 +639,13 @@ class Game:
             "Controls:",
             "Arrow Keys / WASD - Move",
             "Space / W / Up - Jump",
-            "Q - Attack",
+            "Q - Attack | E - Cannon (if equipped)",
+            "Double-tap Left/Right - Barrel Roll",
+            "Down (in air) - Anchor Slam",
         ]
         for i, line in enumerate(controls):
             text = self.menu_font.render(line, True, (30, 30, 30))
-            self.screen.blit(text, (50, 480 + i * 28))
+            self.screen.blit(text, (50, 430 + i * 25))
 
     def _draw_game(self) -> None:
         """Draw the gameplay screen."""
@@ -727,6 +788,10 @@ class Game:
             combat.append(f"invincible({self.player.invincibility_timer})")
         if self.player.hurt_timer > 0:
             combat.append(f"hurt({self.player.hurt_timer})")
+        if self.player.rolling:
+            combat.append(f"rolling({self.player.roll_timer})")
+        if self.player.slamming:
+            combat.append("slamming")
         combat_str = " ".join(combat) if combat else "idle"
 
         # Power-ups

@@ -618,31 +618,85 @@ class Bosun(Enemy):
         # Damage flash
         self.damage_flash = 0
 
-        # Create placeholder image (will be replaced with sprite later)
-        self._create_placeholder_sprite()
+        # Set up animations
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("idle")
+        self.image = self.sprite.get_frame()
 
-    def _create_placeholder_sprite(self) -> None:
-        """Create a placeholder colored sprite for the Bosun."""
-        self.image = pygame.Surface((BOSUN_WIDTH, BOSUN_HEIGHT), pygame.SRCALPHA)
+    def _load_animations(self) -> None:
+        """Load Bosun animations from sprite sheet or placeholders."""
+        sprite_path = "assets/sprites/bosun.png"
 
-        # Body (dark brown)
-        pygame.draw.rect(self.image, (80, 50, 30), (8, 20, 28, 30))
+        if os.path.exists(sprite_path):
+            sheet = SpriteSheet(sprite_path)
 
-        # Head
-        pygame.draw.rect(self.image, (200, 160, 120), (12, 4, 20, 18))
+            # Row 0: Idle (2 frames)
+            idle_frames = sheet.get_strip(0, BOSUN_WIDTH, BOSUN_HEIGHT, 2)
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=20, loop=True))
 
-        # Bandana
-        pygame.draw.rect(self.image, (150, 30, 30), (10, 2, 24, 6))
+            # Row 1: Walk (4 frames)
+            walk_frames = sheet.get_strip(BOSUN_HEIGHT, BOSUN_WIDTH, BOSUN_HEIGHT, 4)
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
 
-        # Legs
-        pygame.draw.rect(self.image, (60, 60, 70), (10, 48, 10, 14))
-        pygame.draw.rect(self.image, (60, 60, 70), (24, 48, 10, 14))
+            # Row 2: Charge (2 frames)
+            charge_frames = sheet.get_strip(BOSUN_HEIGHT * 2, BOSUN_WIDTH, BOSUN_HEIGHT, 2)
+            self.sprite.add_animation("charge", Animation(charge_frames, frame_duration=6, loop=True))
 
-        # Whip (coiled)
-        pygame.draw.rect(self.image, (50, 30, 20), (34, 25, 8, 8))
+            # Row 3: Axe Attack (3 frames)
+            attack_frames = sheet.get_strip(BOSUN_HEIGHT * 3, BOSUN_WIDTH, BOSUN_HEIGHT, 3)
+            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=8, loop=False))
 
-        # Outline
-        pygame.draw.rect(self.image, (0, 0, 0), (0, 0, BOSUN_WIDTH, BOSUN_HEIGHT), 1)
+            # Row 4: Stomp (2 frames)
+            stomp_frames = sheet.get_strip(BOSUN_HEIGHT * 4, BOSUN_WIDTH, BOSUN_HEIGHT, 2)
+            self.sprite.add_animation("stomp", Animation(stomp_frames, frame_duration=12, loop=False))
+
+            # Row 5: Hurt (1 frame)
+            hurt_frames = sheet.get_strip(BOSUN_HEIGHT * 5, BOSUN_WIDTH, BOSUN_HEIGHT, 1)
+            self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=10, loop=False))
+        else:
+            self._load_placeholder_animations()
+
+    def _load_placeholder_animations(self) -> None:
+        """Create placeholder animations for Bosun."""
+        color = (100, 60, 40)  # Dark brown
+
+        idle_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, color, 2, "idle")
+        self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=20, loop=True))
+
+        walk_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, color, 4, "walk")
+        self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=10, loop=True))
+
+        charge_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, (150, 60, 40), 2, "chrg")
+        self.sprite.add_animation("charge", Animation(charge_frames, frame_duration=6, loop=True))
+
+        attack_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, (150, 80, 40), 3, "atk")
+        self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=8, loop=False))
+
+        stomp_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, (120, 60, 60), 2, "stmp")
+        self.sprite.add_animation("stomp", Animation(stomp_frames, frame_duration=12, loop=False))
+
+        hurt_frames = create_placeholder_frames(BOSUN_WIDTH, BOSUN_HEIGHT, (180, 80, 80), 1, "hurt")
+        self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=10, loop=False))
+
+    def _update_animation(self) -> None:
+        """Update which animation should be playing based on state."""
+        if self.damage_flash > 0:
+            self.sprite.play("hurt")
+        elif self.state == self.STATE_CHARGE:
+            self.sprite.play("charge")
+        elif self.state == self.STATE_WHIP_ATTACK:
+            self.sprite.play("attack")
+        elif self.state == self.STATE_STOMP:
+            self.sprite.play("stomp")
+        elif self.state == self.STATE_WALK:
+            self.sprite.play("walk")
+        else:
+            self.sprite.play("idle")
+
+        self.sprite.facing_right = self.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
 
     def set_arena_bounds(self, left: int, right: int) -> None:
         """Set the arena boundaries for the miniboss."""
@@ -711,6 +765,9 @@ class Bosun(Enemy):
                 self.state = self.STATE_STUNNED
                 self.state_timer = 30  # Recovery after charge
                 self.attack_cooldown = BOSUN_ATTACK_COOLDOWN
+
+        # Update animation based on current state
+        self._update_animation()
 
     def _choose_next_action(self, player_rect: pygame.Rect) -> None:
         """Choose next action based on distance to player."""

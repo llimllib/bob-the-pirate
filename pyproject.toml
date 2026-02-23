@@ -5,6 +5,7 @@ description = "A Megaman-style platformer where Captain Bob the Pirate battles B
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "pillow>=12.1.1",
     "pygame>=2.5.0",
 ]
 

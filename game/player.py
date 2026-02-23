@@ -6,10 +6,16 @@ import pygame
 
 from game.animation import AnimatedSprite, Animation, SpriteSheet, create_placeholder_frames
 from game.settings import (
+    ANCHOR_SLAM_COOLDOWN,
+    ANCHOR_SLAM_SPEED,
     ATTACK_COOLDOWN,
     ATTACK_DURATION,
     ATTACK_FRAME_WIDTH,
     ATTACK_RANGE,
+    BARREL_ROLL_COOLDOWN,
+    BARREL_ROLL_DOUBLE_TAP_WINDOW,
+    BARREL_ROLL_DURATION,
+    BARREL_ROLL_SPEED,
     CUTLASS_FURY_COOLDOWN_MULT,
     CUTLASS_FURY_RANGE_MULT,
     GRAVITY,
@@ -90,6 +96,19 @@ class Player(pygame.sprite.Sprite):
         self.has_monkey = False
         self.monkey_timer = 0
 
+        # Barrel Roll ability (innate)
+        self.rolling = False
+        self.roll_timer = 0
+        self.roll_cooldown = 0
+        self.roll_direction = 1  # 1 = right, -1 = left
+        self.last_left_tap = 0  # Frame counter for double-tap detection
+        self.last_right_tap = 0
+
+        # Anchor Slam ability (innate)
+        self.slamming = False
+        self.slam_cooldown = 0
+        self.slam_landed = False  # True when slam hit the ground
+
     def _load_animations(self) -> None:
         """Load player animations from sprite sheet or use placeholders."""
         sprite_path = "assets/sprites/player.png"
@@ -122,6 +141,14 @@ class Player(pygame.sprite.Sprite):
             attack_frame_2 = sheet.sheet.subsurface((PLAYER_WIDTH + ATTACK_FRAME_WIDTH, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
             attack_frames = [attack_frame_0, attack_frame_1, attack_frame_2]
             self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
+
+            # Row 4: Roll (4 frames)
+            roll_frames = sheet.get_strip(PLAYER_HEIGHT * 4, PLAYER_WIDTH, PLAYER_HEIGHT, 4)
+            self.sprite.add_animation("roll", Animation(roll_frames, frame_duration=4, loop=True))
+
+            # Row 5: Slam (3 frames)
+            slam_frames = sheet.get_strip(PLAYER_HEIGHT * 5, PLAYER_WIDTH, PLAYER_HEIGHT, 3)
+            self.sprite.add_animation("slam", Animation(slam_frames, frame_duration=5, loop=False))
         else:
             # Use placeholder frames if sprite sheet not found
             self._load_placeholder_animations()
@@ -148,11 +175,23 @@ class Player(pygame.sprite.Sprite):
         attack_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (200, 150, 50), 3, "atk")
         self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
 
+        # Barrel roll - blue tint to indicate invincibility
+        roll_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (50, 100, 200), 4, "roll")
+        self.sprite.add_animation("roll", Animation(roll_frames, frame_duration=4, loop=True))
+
+        # Anchor slam - red/orange tint for power attack
+        slam_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (200, 100, 50), 3, "slam")
+        self.sprite.add_animation("slam", Animation(slam_frames, frame_duration=5, loop=False))
+
     def _update_animation_state(self) -> None:
         """Update which animation should be playing based on player state."""
-        # Priority: hurt > attack > jump/fall > run > idle
+        # Priority: hurt > roll > slam > attack > jump/fall > run > idle
         if self.hurt_timer > 0:
             self.sprite.play("hurt")
+        elif self.rolling:
+            self.sprite.play("roll")
+        elif self.slamming:
+            self.sprite.play("slam")
         elif self.attacking:
             self.sprite.play("attack")
         elif not self.on_ground:
@@ -165,11 +204,22 @@ class Player(pygame.sprite.Sprite):
         else:
             self.sprite.play("idle")
 
-        # Update facing direction
-        self.sprite.facing_right = self.facing_right
+        # Update facing direction (unless rolling, keep roll direction)
+        if not self.rolling:
+            self.sprite.facing_right = self.facing_right
+        else:
+            self.sprite.facing_right = self.roll_direction > 0
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
         """Process keyboard input for movement and actions."""
+        # Don't allow normal movement during roll or slam
+        if self.rolling:
+            self.velocity_x = BARREL_ROLL_SPEED * self.roll_direction
+            return
+        if self.slamming:
+            self.velocity_x = 0
+            return
+
         # Horizontal movement
         self.velocity_x = 0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -194,6 +244,74 @@ class Player(pygame.sprite.Sprite):
         if self.has_double_jump and not self.on_ground and not self.used_double_jump:
             self.velocity_y = PLAYER_JUMP_POWER * 0.85  # Slightly weaker
             self.used_double_jump = True
+            return True
+        return False
+
+    def try_barrel_roll(self, direction: int, frame_count: int) -> bool:
+        """
+        Attempt to start a barrel roll.
+
+        Args:
+            direction: -1 for left, 1 for right
+            frame_count: Current game frame for double-tap detection
+
+        Returns True if roll was started.
+        """
+        if self.rolling or self.roll_cooldown > 0 or self.slamming:
+            return False
+
+        # Check for double-tap within window
+        # Must have a previous tap (non-zero) and be within the window
+        if direction < 0:
+            if self.last_left_tap > 0 and frame_count - self.last_left_tap <= BARREL_ROLL_DOUBLE_TAP_WINDOW:
+                self._start_roll(direction)
+                self.last_left_tap = 0  # Reset to prevent triple-tap issues
+                return True
+            self.last_left_tap = frame_count
+        else:
+            if self.last_right_tap > 0 and frame_count - self.last_right_tap <= BARREL_ROLL_DOUBLE_TAP_WINDOW:
+                self._start_roll(direction)
+                self.last_right_tap = 0  # Reset to prevent triple-tap issues
+                return True
+            self.last_right_tap = frame_count
+
+        return False
+
+    def _start_roll(self, direction: int) -> None:
+        """Start the barrel roll."""
+        self.rolling = True
+        self.roll_timer = BARREL_ROLL_DURATION
+        self.roll_direction = direction
+        self.invincible = True
+        self.invincibility_timer = BARREL_ROLL_DURATION + 5  # Slightly longer for safety
+        self.sprite.play("roll", force_restart=True)
+
+    def try_anchor_slam(self) -> bool:
+        """
+        Attempt to start an anchor slam.
+        Can only be done while in the air.
+
+        Returns True if slam was started.
+        """
+        if self.on_ground or self.slamming or self.slam_cooldown > 0 or self.rolling:
+            return False
+
+        self.slamming = True
+        self.slam_landed = False
+        self.velocity_y = ANCHOR_SLAM_SPEED
+        self.velocity_x = 0
+        self.sprite.play("slam", force_restart=True)
+        return True
+
+    def land_anchor_slam(self) -> bool:
+        """
+        Called when player lands during a slam.
+        Returns True if this was an anchor slam landing (for triggering effects).
+        """
+        if self.slamming and not self.slam_landed:
+            self.slam_landed = True
+            self.slamming = False
+            self.slam_cooldown = ANCHOR_SLAM_COOLDOWN
             return True
         return False
 
@@ -300,10 +418,11 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, dt: float = 1.0) -> None:
         """Update player state each frame."""
-        # Apply gravity
-        self.velocity_y += GRAVITY
-        if self.velocity_y > MAX_FALL_SPEED:
-            self.velocity_y = MAX_FALL_SPEED
+        # Apply gravity (reduced during slam for consistent speed)
+        if not self.slamming:
+            self.velocity_y += GRAVITY
+            if self.velocity_y > MAX_FALL_SPEED:
+                self.velocity_y = MAX_FALL_SPEED
 
         # Update attack state
         if self.attacking:
@@ -323,6 +442,20 @@ class Player(pygame.sprite.Sprite):
             self.invincibility_timer -= 1
             if self.invincibility_timer <= 0:
                 self.invincible = False
+
+        # Update barrel roll
+        if self.rolling:
+            self.roll_timer -= 1
+            if self.roll_timer <= 0:
+                self.rolling = False
+                self.roll_cooldown = BARREL_ROLL_COOLDOWN
+
+        if self.roll_cooldown > 0:
+            self.roll_cooldown -= 1
+
+        # Update anchor slam cooldown
+        if self.slam_cooldown > 0:
+            self.slam_cooldown -= 1
 
         # Update power-ups
         if self.has_parrot:

@@ -110,3 +110,17 @@ PARROT_HEIGHT = 12
 CANNON_SHOOT_COOLDOWN = 180  # 3 seconds
 CANNONBALL_SPEED = 4.8
 CANNONBALL_GRAVITY = 0.3
+
+# Barrel Roll ability
+BARREL_ROLL_SPEED = 12  # Faster than normal movement
+BARREL_ROLL_DURATION = 15  # Frames (0.25 seconds)
+BARREL_ROLL_COOLDOWN = 45  # Frames before can roll again
+BARREL_ROLL_DOUBLE_TAP_WINDOW = 15  # Frames to detect double-tap
+
+# Anchor Slam ability
+ANCHOR_SLAM_SPEED = 20  # Fast downward velocity
+ANCHOR_SLAM_DAMAGE = 2  # Damage dealt to enemies
+ANCHOR_SLAM_RADIUS = 50  # Damage radius on landing
+ANCHOR_SLAM_STUN_FRAMES = 30  # Stun duration for hit enemies
+ANCHOR_SLAM_COOLDOWN = 60  # Frames before can slam again
+ANCHOR_SLAM_FRAMES = 3  # Number of animation frames

@@ -7,13 +7,10 @@ from game.player import Player
 from game.settings import (
     ATTACK_COOLDOWN,
     ATTACK_RANGE,
-    CANNON_SHOT_AMMO,
     CUTLASS_FURY_COOLDOWN_MULT,
     CUTLASS_FURY_DURATION,
     CUTLASS_FURY_RANGE_MULT,
     DOUBLE_JUMP_DURATION,
-    MAGNET_DURATION,
-    MONKEY_DURATION,
 )
 
 
