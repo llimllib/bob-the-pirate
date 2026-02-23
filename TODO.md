@@ -1,0 +1,2 @@
+- add a debug key that shows hitboxes and frame rate, anything else useful?
+  - or should this just happen for -v?

@@ -55,7 +55,8 @@ def create_surface():
 
 def draw_pixel(surface, x, y, color):
     """Draw a single pixel."""
-    if 0 <= x < SPRITE_WIDTH and 0 <= y < SPRITE_HEIGHT:
+    w, h = surface.get_size()
+    if 0 <= x < w and 0 <= y < h:
         surface.set_at((x, y), color)
 
 
@@ -178,21 +179,23 @@ def draw_saber_swing(surface, frame):
         # Handle near shoulder
         draw_rect(surface, 22, 14, 3, 4, SABER_HANDLE)
         # Blade going up-back
-        for i in range(10):
-            draw_rect(surface, 24 - i // 3, 10 - i, 2, 3, SABER_SILVER)
-            draw_pixel(surface, 25 - i // 3, 10 - i, SABER_EDGE)
+        for i in range(12):
+            draw_rect(surface, 24 - i // 3, 8 - i, 2, 3, SABER_SILVER)
+            draw_pixel(surface, 25 - i // 3, 8 - i, SABER_EDGE)
     elif frame == 1:
-        # Mid swing - saber horizontal forward
+        # Mid swing - saber horizontal forward (extended!)
         draw_rect(surface, 26, 22, 3, 4, SABER_HANDLE)
-        # Blade extending right
-        draw_rect(surface, 29, 20, 12, 3, SABER_SILVER)
-        draw_rect(surface, 29, 20, 12, 1, SABER_EDGE)
-        draw_rect(surface, 29, 22, 12, 1, SABER_DARK)
+        # Blade extending right - longer saber (24 pixels)
+        draw_rect(surface, 29, 20, 24, 3, SABER_SILVER)
+        draw_rect(surface, 29, 20, 24, 1, SABER_EDGE)
+        draw_rect(surface, 29, 22, 24, 1, SABER_DARK)
+        # Saber tip
+        draw_rect(surface, 52, 19, 2, 4, SABER_EDGE)
     else:
         # Follow through - saber low
         draw_rect(surface, 26, 28, 3, 4, SABER_HANDLE)
-        # Blade going down-forward
-        for i in range(10):
+        # Blade going down-forward - longer
+        for i in range(14):
             draw_rect(surface, 29 + i, 30 + i // 2, 2, 3, SABER_SILVER)
             draw_pixel(surface, 29 + i, 30 + i // 2, SABER_EDGE)
 
@@ -239,11 +242,12 @@ def create_fall_frame():
 
 def create_attack_frame(frame_num):
     """Create attack animation frame (saber slash)."""
-    # Use wider surface for attack to fit saber
-    surface = pygame.Surface((48, SPRITE_HEIGHT), pygame.SRCALPHA)
+    # Use wider surface for attack to fit extended saber (56px wide)
+    attack_width = 56
+    surface = pygame.Surface((attack_width, SPRITE_HEIGHT), pygame.SRCALPHA)
     surface.fill(TRANSPARENT)
 
-    # Draw Bob shifted left a bit to make room for saber
+    # Draw Bob
     bob_surface = create_surface()
     draw_bob_base(bob_surface, leg_offset=0, arm_offset=-1 if frame_num == 0 else 1)
     surface.blit(bob_surface, (0, 0))
@@ -253,16 +257,15 @@ def create_attack_frame(frame_num):
 
     add_outline(surface)
 
-    # Crop back to 32x48, keeping the important parts visible
-    # For frames with extended saber, we center differently
-    final = create_surface()
+    # Return full width for mid-swing, crop others to standard width
     if frame_num == 1:
-        # Mid-swing: saber extends far right, crop from left
-        final.blit(surface, (0, 0), (8, 0, 32, 48))
+        # Mid-swing: keep full width to show extended saber
+        return surface
     else:
+        # Wind-up and follow-through: crop to standard size
+        final = create_surface()
         final.blit(surface, (0, 0), (0, 0, 32, 48))
-
-    return final
+        return final
 
 
 def create_hurt_frame():
@@ -274,10 +277,24 @@ def create_hurt_frame():
 
 
 def generate_sprite_sheet():
-    """Generate the complete sprite sheet."""
+    """Generate the complete sprite sheet.
+
+    Layout:
+    - Row 0: Idle (2 frames, 32px each)
+    - Row 1: Run (4 frames, 32px each)
+    - Row 2: Jump, Fall, Hurt (32px each)
+    - Row 3: Attack frame 0 (32px), Attack frame 1 (56px), Attack frame 2 (32px)
+
+    Note: Attack frame 1 (mid-swing) is wider (56px) to show extended saber.
+    """
+    # Standard rows use 4 cols of 32px
+    # Attack row: 32 + 56 + 32 = 120px wide
+    attack_widths = [32, 56, 32]  # Width of each attack frame
+    attack_row_width = sum(attack_widths)
+
     cols = 4
     rows = 4
-    sheet_width = SPRITE_WIDTH * cols
+    sheet_width = max(SPRITE_WIDTH * cols, attack_row_width)
     sheet_height = SPRITE_HEIGHT * rows
 
     sheet = pygame.Surface((sheet_width, sheet_height), pygame.SRCALPHA)
@@ -298,10 +315,12 @@ def generate_sprite_sheet():
     sheet.blit(create_fall_frame(), (SPRITE_WIDTH, SPRITE_HEIGHT * 2))
     sheet.blit(create_hurt_frame(), (SPRITE_WIDTH * 2, SPRITE_HEIGHT * 2))
 
-    # Row 3: Attack (3 frames)
+    # Row 3: Attack (3 frames with variable widths)
+    x_offset = 0
     for i in range(3):
         frame = create_attack_frame(i)
-        sheet.blit(frame, (i * SPRITE_WIDTH, SPRITE_HEIGHT * 3))
+        sheet.blit(frame, (x_offset, SPRITE_HEIGHT * 3))
+        x_offset += attack_widths[i]
 
     return sheet
 

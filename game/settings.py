@@ -30,8 +30,9 @@ INVINCIBILITY_FRAMES = 60  # 1 second at 60 FPS
 # Attack settings
 ATTACK_DURATION = 15  # frames
 ATTACK_COOLDOWN = 20  # frames
-ATTACK_RANGE = 40
+ATTACK_RANGE = 24  # Matches the visual saber length
 ATTACK_DAMAGE = 1
+ATTACK_FRAME_WIDTH = 56  # Width of mid-swing attack frame
 
 # Tile settings
 TILE_SIZE = 32

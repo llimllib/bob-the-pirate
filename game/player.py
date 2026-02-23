@@ -8,6 +8,7 @@ from game.animation import AnimatedSprite, Animation, SpriteSheet, create_placeh
 from game.settings import (
     ATTACK_COOLDOWN,
     ATTACK_DURATION,
+    ATTACK_FRAME_WIDTH,
     ATTACK_RANGE,
     GRAVITY,
     INVINCIBILITY_FRAMES,
@@ -17,7 +18,6 @@ from game.settings import (
     PLAYER_MAX_HEALTH,
     PLAYER_SPEED,
     PLAYER_WIDTH,
-    YELLOW,
 )
 
 
@@ -90,8 +90,12 @@ class Player(pygame.sprite.Sprite):
             hurt_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1, x_start=PLAYER_WIDTH * 2)
             self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=8, loop=False))
 
-            # Row 3: Attack (3 frames)
-            attack_frames = sheet.get_strip(PLAYER_HEIGHT * 3, PLAYER_WIDTH, PLAYER_HEIGHT, 3)
+            # Row 3: Attack (3 frames with variable widths: 32, 56, 32)
+            attack_y = PLAYER_HEIGHT * 3
+            attack_frame_0 = sheet.sheet.subsurface((0, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
+            attack_frame_1 = sheet.sheet.subsurface((PLAYER_WIDTH, attack_y, ATTACK_FRAME_WIDTH, PLAYER_HEIGHT))
+            attack_frame_2 = sheet.sheet.subsurface((PLAYER_WIDTH + ATTACK_FRAME_WIDTH, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
+            attack_frames = [attack_frame_0, attack_frame_1, attack_frame_2]
             self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
         else:
             # Use placeholder frames if sprite sheet not found
@@ -278,18 +282,21 @@ class Player(pygame.sprite.Sprite):
 
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the player to the screen."""
-        draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
 
         # Flash when invincible (but not during hurt animation)
         if self.invincible and self.hurt_timer <= 0 and self.invincibility_timer % 10 < 5:
             return  # Skip drawing for flash effect
 
-        # Draw player sprite
-        surface.blit(self.image, draw_rect)
+        # Handle wider attack sprite offset
+        # When attacking with the extended frame, adjust position so Bob stays centered
+        # and the sword extends in the correct direction
+        if self.attacking and self.image.get_width() > PLAYER_WIDTH:
+            extra_width = self.image.get_width() - PLAYER_WIDTH
+            if not self.facing_right:
+                # Facing left: shift draw position left so sword extends left
+                draw_x -= extra_width
 
-        # Draw attack hitbox (debug, can be removed later)
-        if self.attacking:
-            attack_hitbox = self.get_attack_hitbox()
-            if attack_hitbox:
-                attack_draw = attack_hitbox.move(-camera_offset[0], -camera_offset[1])
-                pygame.draw.rect(surface, YELLOW, attack_draw, 2)
+        # Draw player sprite
+        surface.blit(self.image, (draw_x, draw_y))
