@@ -56,6 +56,7 @@ class Player(pygame.sprite.Sprite):
         self.invincible = False
         self.invincibility_timer = 0
         self.hurt_timer = 0  # For hurt animation
+        self.enemies_hit_this_attack: set[int] = set()  # Track enemy IDs hit during current attack
 
         # Power-ups
         self.has_parrot = False
@@ -170,6 +171,7 @@ class Player(pygame.sprite.Sprite):
         self.attacking = True
         self.attack_timer = ATTACK_DURATION
         self.attack_cooldown = ATTACK_COOLDOWN
+        self.enemies_hit_this_attack.clear()  # Reset hit tracking for new attack
 
         # Force attack animation to restart
         self.sprite.play("attack", force_restart=True)

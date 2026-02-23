@@ -1,10 +1,12 @@
 """Power-up entities: Parrot companion, shields, etc."""
 
 import math
+import os
 
 import pygame
 
-from game.settings import GREEN, PARROT_ATTACK_COOLDOWN, PARROT_DAMAGE, RED, YELLOW
+from game.animation import AnimatedSprite, Animation, SpriteSheet, create_placeholder_frames
+from game.settings import PARROT_ATTACK_COOLDOWN, PARROT_DAMAGE, PARROT_HEIGHT, PARROT_WIDTH, RED
 
 
 class Parrot(pygame.sprite.Sprite):
@@ -17,14 +19,13 @@ class Parrot(pygame.sprite.Sprite):
         super().__init__()
         self.player = player
 
-        # Visual
-        self.image = pygame.Surface((16, 12))
-        self.image.fill(GREEN)
-        # Add wing detail
-        pygame.draw.polygon(self.image, (0, 200, 0), [(8, 0), (16, 6), (8, 6)])
-        # Add beak
-        pygame.draw.polygon(self.image, YELLOW, [(0, 4), (0, 8), (-4, 6)])
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("flying")
 
+        # Visual - updated from animation
+        self.image = self.sprite.get_frame()
         self.rect = self.image.get_rect()
 
         # Movement
@@ -45,6 +46,30 @@ class Parrot(pygame.sprite.Sprite):
         # Position
         self.x = player.rect.centerx + self.offset_x
         self.y = player.rect.top + self.offset_y
+
+    def _load_animations(self) -> None:
+        """Load parrot animations from sprite sheet or use placeholders."""
+        sprite_path = "assets/sprites/parrot.png"
+
+        if os.path.exists(sprite_path):
+            sheet = SpriteSheet(sprite_path)
+
+            # Row 0: Flying (2 frames), Attack (2 frames)
+            flying_frames = sheet.get_strip(0, PARROT_WIDTH, PARROT_HEIGHT, 2)
+            self.sprite.add_animation("flying", Animation(flying_frames, frame_duration=8, loop=True))
+
+            attack_frames = sheet.get_strip(0, PARROT_WIDTH, PARROT_HEIGHT, 2, x_start=PARROT_WIDTH * 2)
+            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=True))
+        else:
+            self._load_placeholder_animations()
+
+    def _load_placeholder_animations(self) -> None:
+        """Load placeholder colored rectangle animations."""
+        flying_frames = create_placeholder_frames(PARROT_WIDTH, PARROT_HEIGHT, (50, 180, 80), 2, "fly")
+        self.sprite.add_animation("flying", Animation(flying_frames, frame_duration=8, loop=True))
+
+        attack_frames = create_placeholder_frames(PARROT_WIDTH, PARROT_HEIGHT, (220, 60, 60), 2, "atk")
+        self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=True))
 
     def find_target(self, enemies: pygame.sprite.Group) -> pygame.sprite.Sprite | None:
         """Find the nearest enemy within attack range."""
@@ -129,6 +154,16 @@ class Parrot(pygame.sprite.Sprite):
         self.rect.centerx = int(self.x)
         self.rect.centery = int(self.y)
 
+        # Update animation
+        if self.attacking:
+            self.sprite.play("attack")
+        else:
+            self.sprite.play("flying")
+
+        self.sprite.facing_right = self.player.facing_right
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
         return damaged_enemy
 
     def start_attack(self, target: pygame.sprite.Sprite) -> None:
@@ -143,12 +178,8 @@ class Parrot(pygame.sprite.Sprite):
         """Draw the parrot."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
 
-        # Flip image based on direction
-        img = self.image
-        if self.player.facing_right:
-            img = pygame.transform.flip(self.image, True, False)
-
-        surface.blit(img, draw_rect)
+        # Just draw the current animation frame (already flipped by AnimatedSprite)
+        surface.blit(self.image, draw_rect)
 
         # Draw attack indicator when attacking
         if self.attacking:

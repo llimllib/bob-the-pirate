@@ -11,6 +11,7 @@ from game.level import Level
 def init_pygame():
     """Initialize pygame for all tests."""
     pygame.init()
+    pygame.display.set_mode((1, 1), pygame.HIDDEN)
     yield
     pygame.quit()
 

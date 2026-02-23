@@ -1,18 +1,23 @@
 """Enemy classes for British naval forces."""
 
 import math
+import os
 import random
 
 import pygame
 
+from game.animation import AnimatedSprite, Animation, SpriteSheet, create_placeholder_frames
 from game.settings import (
     ADMIRAL_ATTACK_COOLDOWN,
     ADMIRAL_CHARGE_SPEED,
     ADMIRAL_HEALTH,
+    ADMIRAL_HEIGHT,
     ADMIRAL_PHASE_2_THRESHOLD,
     ADMIRAL_PHASE_3_THRESHOLD,
     ADMIRAL_SPEED,
     ADMIRAL_SUMMON_COOLDOWN,
+    ADMIRAL_SWORD_FRAME_WIDTH,
+    ADMIRAL_WIDTH,
     BLUE,
     CANNON_SHOOT_COOLDOWN,
     CANNONBALL_GRAVITY,
@@ -298,7 +303,7 @@ class Cannonball(Projectile):
 
 
 class Admiral(Enemy):
-    """Boss enemy - Admiral Blackwood with multiple attack phases."""
+    """Boss enemy - Vice-Admiral Garp with multiple attack phases."""
 
     # Attack states
     STATE_IDLE = "idle"
@@ -310,8 +315,13 @@ class Admiral(Enemy):
     STATE_STUNNED = "stunned"
 
     def __init__(self, x: int, y: int, projectile_group: pygame.sprite.Group):
-        super().__init__(x, y, 48, 64, ADMIRAL_HEALTH, (139, 0, 0))
+        super().__init__(x, y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, ADMIRAL_HEALTH, (139, 0, 0))
         self.projectile_group = projectile_group
+
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+        self.sprite.play("idle")
 
         # AI state
         self.state = self.STATE_IDLE
@@ -335,6 +345,83 @@ class Admiral(Enemy):
 
         # For invincibility flash
         self.damage_flash = 0
+
+    def _load_animations(self) -> None:
+        """Load Admiral animations from sprite sheet or use placeholders."""
+        sprite_path = "assets/sprites/admiral.png"
+
+        if os.path.exists(sprite_path):
+            sheet = SpriteSheet(sprite_path)
+
+            # Row 0: Idle (2 frames), Walk (2 frames)
+            idle_frames = sheet.get_strip(0, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, 2)
+            self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=30, loop=True))
+
+            walk_frames = sheet.get_strip(0, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, 2, x_start=ADMIRAL_WIDTH * 2)
+            self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=12, loop=True))
+
+            # Row 1: Sword attack (3 frames with variable widths: 48, 70, 48)
+            attack_y = ADMIRAL_HEIGHT
+            attack_frame_0 = sheet.sheet.subsurface((0, attack_y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT))
+            attack_frame_1 = sheet.sheet.subsurface((ADMIRAL_WIDTH, attack_y, ADMIRAL_SWORD_FRAME_WIDTH, ADMIRAL_HEIGHT))
+            attack_frame_2 = sheet.sheet.subsurface((ADMIRAL_WIDTH + ADMIRAL_SWORD_FRAME_WIDTH, attack_y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT))
+            sword_frames = [attack_frame_0, attack_frame_1, attack_frame_2]
+            self.sprite.add_animation("sword", Animation(sword_frames, frame_duration=8, loop=False))
+
+            # Row 2: Pistol (2 frames), Charge, Stunned
+            row2_y = ADMIRAL_HEIGHT * 2
+            pistol_frames = sheet.get_strip(row2_y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, 2)
+            self.sprite.add_animation("pistol", Animation(pistol_frames, frame_duration=15, loop=False))
+
+            charge_frames = sheet.get_strip(row2_y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, 1, x_start=ADMIRAL_WIDTH * 2)
+            self.sprite.add_animation("charge", Animation(charge_frames, frame_duration=1, loop=False))
+
+            stunned_frames = sheet.get_strip(row2_y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, 1, x_start=ADMIRAL_WIDTH * 3)
+            self.sprite.add_animation("stunned", Animation(stunned_frames, frame_duration=1, loop=False))
+
+            # Summon uses idle animation
+            self.sprite.add_animation("summon", Animation(idle_frames, frame_duration=10, loop=True))
+        else:
+            self._load_placeholder_animations()
+
+    def _load_placeholder_animations(self) -> None:
+        """Load placeholder colored rectangle animations."""
+        dark_red = (139, 0, 0)
+
+        idle_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, dark_red, 2, "idle")
+        self.sprite.add_animation("idle", Animation(idle_frames, frame_duration=30, loop=True))
+
+        walk_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, dark_red, 2, "walk")
+        self.sprite.add_animation("walk", Animation(walk_frames, frame_duration=12, loop=True))
+
+        sword_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, (200, 50, 50), 3, "sword")
+        self.sprite.add_animation("sword", Animation(sword_frames, frame_duration=8, loop=False))
+
+        pistol_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, (150, 100, 50), 2, "pistol")
+        self.sprite.add_animation("pistol", Animation(pistol_frames, frame_duration=15, loop=False))
+
+        charge_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, (255, 100, 0), 1, "charge")
+        self.sprite.add_animation("charge", Animation(charge_frames, frame_duration=1, loop=False))
+
+        stunned_frames = create_placeholder_frames(ADMIRAL_WIDTH, ADMIRAL_HEIGHT, (100, 100, 150), 1, "stunned")
+        self.sprite.add_animation("stunned", Animation(stunned_frames, frame_duration=1, loop=False))
+
+        self.sprite.add_animation("summon", Animation(idle_frames, frame_duration=10, loop=True))
+
+    def _update_animation_state(self) -> None:
+        """Update which animation should be playing based on state."""
+        state_to_anim = {
+            self.STATE_IDLE: "idle",
+            self.STATE_WALK: "walk",
+            self.STATE_SWORD_ATTACK: "sword",
+            self.STATE_PISTOL_SHOT: "pistol",
+            self.STATE_CHARGE: "charge",
+            self.STATE_STUNNED: "stunned",
+            self.STATE_SUMMON: "summon",
+        }
+        anim_name = state_to_anim.get(self.state, "idle")
+        self.sprite.play(anim_name)
+        self.sprite.facing_right = self.facing_right
 
     @property
     def current_phase(self) -> int:
@@ -425,6 +512,11 @@ class Admiral(Enemy):
                 self.state_timer = 60
                 self.summon_cooldown = ADMIRAL_SUMMON_COOLDOWN
 
+        # Update animation
+        self._update_animation_state()
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
     def _choose_next_action(self, player_rect: pygame.Rect) -> None:
         """Choose next action based on phase and distance to player."""
         distance = abs(player_rect.centerx - self.rect.centerx)
@@ -510,33 +602,31 @@ class Admiral(Enemy):
         self.arena_right = right
 
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
-        """Draw the Admiral with state indicators."""
+        """Draw the Admiral with animated sprite and state indicators."""
         if not self.active:
             return
 
-        draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        # Get current animation frame
+        frame = self.sprite.get_frame()
+
+        # Handle wider attack sprite offset (like player)
+        if self.state == self.STATE_SWORD_ATTACK and frame.get_width() > ADMIRAL_WIDTH:
+            extra_width = frame.get_width() - ADMIRAL_WIDTH
+            if not self.facing_right:
+                draw_x -= extra_width
 
         # Flash white when damaged
         if self.damage_flash > 0 and self.damage_flash % 2 == 0:
-            flash_surface = self.image.copy()
+            flash_surface = frame.copy()
             flash_surface.fill(WHITE)
-            surface.blit(flash_surface, draw_rect)
+            surface.blit(flash_surface, (draw_x, draw_y))
         else:
-            # Draw with phase-based color intensity
-            phase_color = (
-                min(255, 139 + (self.phase - 1) * 40),  # More red as phases increase
-                0,
-                max(0, 50 - self.phase * 20)
-            )
-            self.image.fill(phase_color)
-            surface.blit(self.image, draw_rect)
+            surface.blit(frame, (draw_x, draw_y))
 
-        # Draw hat (to distinguish from regular enemies)
-        hat_rect = pygame.Rect(draw_rect.x + 8, draw_rect.y - 12, 32, 16)
-        pygame.draw.rect(surface, (20, 20, 50), hat_rect)
-        pygame.draw.rect(surface, (255, 215, 0), hat_rect, 2)  # Gold trim
-
-        # Draw attack effects
+        # Draw attack effects (sword hitbox indicator)
         if self.state == self.STATE_SWORD_ATTACK and 5 < self.state_timer < 20:
             attack_box = self.get_attack_hitbox()
             if attack_box:
@@ -545,10 +635,12 @@ class Admiral(Enemy):
 
         # Draw charge indicator
         if self.state == self.STATE_CHARGE:
+            draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
             pygame.draw.rect(surface, (255, 100, 0), draw_rect.inflate(6, 6), 3)
 
         # Draw stunned indicator
         if self.state == self.STATE_STUNNED:
+            draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
             # Draw stars
             for i in range(3):
                 angle = (pygame.time.get_ticks() / 200 + i * 2.1) % (2 * 3.14159)

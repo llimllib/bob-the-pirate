@@ -156,9 +156,14 @@ class HUD:
         # Border
         pygame.draw.rect(surface, (200, 180, 100), (bar_x - 4, bar_y - 4, bar_width + 8, bar_height + 8), 3)
 
-        # Boss name
-        name_text = self.font.render("ADMIRAL BLACKWOOD", True, (200, 180, 100))
+        # Boss name with shadow for readability
+        name_text = self.font.render("VICE-ADMIRAL GARP", True, (200, 180, 100))
         name_rect = name_text.get_rect(centerx=SCREEN_WIDTH // 2, bottom=bar_y - 8)
+        # Draw shadow/outline for readability against any background
+        shadow_color = (0, 0, 0)
+        for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2), (-2, 0), (2, 0), (0, -2), (0, 2)]:
+            shadow_text = self.font.render("VICE-ADMIRAL GARP", True, shadow_color)
+            surface.blit(shadow_text, (name_rect.x + dx, name_rect.y + dy))
         surface.blit(name_text, name_rect)
 
         # Phase indicator

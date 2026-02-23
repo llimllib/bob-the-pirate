@@ -16,6 +16,7 @@ from game.settings import (
 def init_pygame():
     """Initialize pygame for all tests."""
     pygame.init()
+    pygame.display.set_mode((1, 1), pygame.HIDDEN)
     yield
     pygame.quit()
 
@@ -192,6 +193,39 @@ class TestAdmiral:
         assert boss.max_health == ADMIRAL_HEALTH
         assert boss.phase == 1
         assert boss.state == Admiral.STATE_IDLE
+
+    def test_admiral_has_animated_sprite(self, projectile_group):
+        """Admiral should have AnimatedSprite with all required animations."""
+        boss = Admiral(400, 400, projectile_group)
+        assert boss.sprite is not None
+        # Check all required animations exist
+        assert "idle" in boss.sprite.animations
+        assert "walk" in boss.sprite.animations
+        assert "sword" in boss.sprite.animations
+        assert "pistol" in boss.sprite.animations
+        assert "charge" in boss.sprite.animations
+        assert "stunned" in boss.sprite.animations
+        assert "summon" in boss.sprite.animations
+
+    def test_admiral_animation_updates_with_state(self, projectile_group, player_rect):
+        """Admiral animation should change based on state."""
+        boss = Admiral(400, 400, projectile_group)
+
+        # Start with idle
+        boss.update(player_rect)
+        assert boss.sprite.current_animation == "idle"
+
+        # Force walk state
+        boss.state = Admiral.STATE_WALK
+        boss.update(player_rect)
+        assert boss.sprite.current_animation == "walk"
+
+        # Force charge state
+        boss.state = Admiral.STATE_CHARGE
+        boss.charge_direction = 1
+        boss.state_timer = 60
+        boss.update(player_rect)
+        assert boss.sprite.current_animation == "charge"
 
     def test_admiral_phase_transitions(self, projectile_group):
         """Admiral should change phases at health thresholds."""

@@ -276,14 +276,17 @@ class Game:
                 if self._try_damage_player(projectile.damage):
                     projectile.kill()
 
-        # Check attack hits
+        # Check attack hits (each enemy can only be hit once per attack)
         if self.player.attacking:
             attack_box = self.player.get_attack_hitbox()
             if attack_box:
                 for enemy in self.level.enemies:
-                    if attack_box.colliderect(enemy.rect):
-                        damage = 1 * self.player.damage_multiplier
-                        enemy.take_damage(damage)
+                    enemy_id = id(enemy)
+                    if enemy_id not in self.player.enemies_hit_this_attack:
+                        if attack_box.colliderect(enemy.rect):
+                            damage = int(1 * self.player.damage_multiplier)
+                            enemy.take_damage(damage)
+                            self.player.enemies_hit_this_attack.add(enemy_id)
 
         # Check death (fell off level)
         if self.player.rect.top > self.level.height + 100:
@@ -458,7 +461,7 @@ class Game:
         self.screen.blit(text, text_rect)
 
         # Boss name
-        boss_text = self.menu_font.render("Admiral Blackwood Defeated!", True, WHITE)
+        boss_text = self.menu_font.render("Vice-Admiral Garp Defeated!", True, WHITE)
         boss_rect = boss_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
         self.screen.blit(boss_text, boss_rect)
 

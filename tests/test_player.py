@@ -178,6 +178,19 @@ class TestPlayerCombat:
         assert player.attacking is True
         assert player.attack_timer == ATTACK_DURATION
 
+    def test_attack_clears_hit_tracking(self):
+        """Test new attack clears the enemies_hit_this_attack set."""
+        player = Player(0, 0)
+        # Simulate having hit an enemy previously
+        player.enemies_hit_this_attack.add(12345)
+        assert len(player.enemies_hit_this_attack) == 1
+
+        # Start new attack
+        player.attack()
+
+        # Set should be cleared
+        assert len(player.enemies_hit_this_attack) == 0
+
     def test_attack_cooldown_prevents_attack(self):
         """Test can't attack during cooldown."""
         player = Player(0, 0)

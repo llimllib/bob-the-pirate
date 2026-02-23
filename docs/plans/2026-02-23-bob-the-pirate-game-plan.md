@@ -283,11 +283,13 @@ All enemy types including a functional boss fight.
 - [ ] Projectiles: musket ball (8x8), cannonball (12x12), admiral bullet (10x10)
 - [ ] Integrate into enemy classes
 
-### Phase 8F: Boss & Power-ups
-- [ ] Vice-Admiral Garp (48x64) - idle, walk (2 frames), sword attack (3 frames), pistol shot (2 frames), charge, stunned
-- [ ] Parrot companion (16x12) - flying, attack
-- [ ] Ghost shield effect (keep programmatic or add sprite)
-- [ ] Integrate into Admiral and power-up classes
+### Phase 8F: Boss & Power-ups ✅
+- [x] Vice-Admiral Garp (48x64) - idle, walk (2 frames), sword attack (3 frames), pistol shot (2 frames), charge, stunned
+- [x] Hat with five red feathers
+- [x] Parrot companion (16x12) - flying (2 frames), attack (2 frames)
+- [x] Ghost shield effect (kept programmatic)
+- [x] Integrate into Admiral and power-up classes
+- [x] Sprite generator tools: `tools/generate_boss_sprites.py`, `tools/generate_parrot_sprites.py`
 
 ### Phase 8G: Effects & Polish
 - [ ] Sword slash effect sprite/animation

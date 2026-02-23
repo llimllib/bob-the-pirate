@@ -56,6 +56,8 @@ PARROT_ATTACK_COOLDOWN = 60
 PARROT_DAMAGE = 1
 
 # Boss settings
+ADMIRAL_WIDTH = 48
+ADMIRAL_HEIGHT = 72  # Taller than player (48) to be imposing
 ADMIRAL_HEALTH = 10
 ADMIRAL_SPEED = 2
 ADMIRAL_PHASE_2_THRESHOLD = 6  # Phase 2 at 60% health
@@ -63,6 +65,11 @@ ADMIRAL_PHASE_3_THRESHOLD = 3  # Phase 3 at 30% health
 ADMIRAL_ATTACK_COOLDOWN = 90  # 1.5 seconds
 ADMIRAL_CHARGE_SPEED = 8
 ADMIRAL_SUMMON_COOLDOWN = 300  # 5 seconds
+ADMIRAL_SWORD_FRAME_WIDTH = 70  # Width of mid-swing attack frame
+
+# Parrot settings
+PARROT_WIDTH = 16
+PARROT_HEIGHT = 12
 
 # Cannon settings
 CANNON_SHOOT_COOLDOWN = 180  # 3 seconds
