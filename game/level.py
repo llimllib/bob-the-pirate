@@ -5,28 +5,64 @@ import json
 import pygame
 
 from game.settings import BROWN, GREEN, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE
+from game.tiles import get_tile_sprites
 
 
 class Tile(pygame.sprite.Sprite):
     """A single tile in the level."""
 
-    def __init__(self, x: int, y: int, tile_type: str = "solid"):
-        super().__init__()
-        self.image = pygame.Surface((TILE_SIZE, TILE_SIZE))
-        self.tile_type = tile_type
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        tile_type: str = "solid",
+        sprite_name: str | None = None
+    ):
+        """
+        Initialize a tile.
 
-        # Color based on type
-        if tile_type == "solid":
-            self.image.fill(BROWN)
-        elif tile_type == "platform":
-            # One-way platform - thinner, different color
-            self.image.fill((0, 0, 0, 0))
-            self.image.set_colorkey((0, 0, 0))
-            pygame.draw.rect(self.image, (100, 80, 60), (0, 0, TILE_SIZE, 8))
-        elif tile_type == "decoration":
-            self.image.fill(GREEN)
+        Args:
+            x: X position in pixels
+            y: Y position in pixels
+            tile_type: Type for collision ('solid', 'platform', 'decoration')
+            sprite_name: Specific sprite to use (if None, uses fallback based on type)
+        """
+        super().__init__()
+        self.tile_type = tile_type
+        self.sprite_name = sprite_name
+        self.grid_x = x // TILE_SIZE
+        self.grid_y = y // TILE_SIZE
+
+        # Get sprite from tileset or use fallback
+        if sprite_name:
+            tiles = get_tile_sprites()
+            self.image = tiles.get(sprite_name)
+        else:
+            self.image = self._create_fallback_image()
 
         self.rect = self.image.get_rect(topleft=(x, y))
+
+    def _create_fallback_image(self) -> pygame.Surface:
+        """Create a fallback colored image based on tile type."""
+        image = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+
+        if self.tile_type == "solid":
+            image.fill(BROWN)
+        elif self.tile_type == "platform":
+            image.fill((0, 0, 0, 0))
+            pygame.draw.rect(image, (100, 80, 60), (0, 0, TILE_SIZE, 8))
+        elif self.tile_type == "decoration":
+            image.fill(GREEN)
+        else:
+            image.fill((128, 128, 128))
+
+        return image
+
+    def set_sprite(self, sprite_name: str) -> None:
+        """Update the tile's sprite."""
+        self.sprite_name = sprite_name
+        tiles = get_tile_sprites()
+        self.image = tiles.get(sprite_name)
 
     @property
     def is_one_way(self) -> bool:
@@ -44,8 +80,9 @@ class Level:
 
     def __init__(self):
         self.tiles = pygame.sprite.Group()
-        self.solid_tiles = []  # For collision checking
-        self.platform_tiles = []  # One-way platforms
+        self.solid_tiles: list[Tile] = []  # For collision checking
+        self.platform_tiles: list[Tile] = []  # One-way platforms
+        self.decoration_tiles: list[Tile] = []  # Non-colliding decorations
         self.enemies = pygame.sprite.Group()
         self.collectibles = pygame.sprite.Group()
         self.projectiles = pygame.sprite.Group()
@@ -55,12 +92,77 @@ class Level:
         self.width = SCREEN_WIDTH
         self.height = SCREEN_HEIGHT
         self.treasure_total = 0
+        self.background_type = "outdoor"  # Default background type
         self.treasure_collected = 0
         self.exit_door = None
 
         # Boss level support
         self.is_boss_level = False
         self.boss = None
+
+        # Grid for auto-tiling lookups
+        self._tile_grid: dict[tuple[int, int], Tile] = {}
+
+    def _get_tile_at_grid(self, gx: int, gy: int) -> Tile | None:
+        """Get tile at grid position."""
+        return self._tile_grid.get((gx, gy))
+
+    def _is_solid_at_grid(self, gx: int, gy: int) -> bool:
+        """Check if there's a solid tile at grid position."""
+        tile = self._get_tile_at_grid(gx, gy)
+        return tile is not None and tile.tile_type == "solid"
+
+    def _compute_auto_tile_sprite(self, tile: Tile) -> str:
+        """
+        Determine the appropriate sprite for a solid tile based on neighbors.
+
+        Returns the sprite name to use (e.g., 'solid_top', 'solid_middle').
+        """
+        if tile.tile_type != "solid":
+            if tile.tile_type == "platform":
+                return "platform"
+            return "solid_middle"  # Fallback
+
+        gx, gy = tile.grid_x, tile.grid_y
+
+        # Check neighbors
+        has_top = self._is_solid_at_grid(gx, gy - 1)
+        has_bottom = self._is_solid_at_grid(gx, gy + 1)
+        has_left = self._is_solid_at_grid(gx - 1, gy)
+        has_right = self._is_solid_at_grid(gx + 1, gy)
+
+        # Corner cases
+        if not has_top and not has_left:
+            return "solid_top_left"
+        if not has_top and not has_right:
+            return "solid_top_right"
+        if not has_bottom and not has_left:
+            return "solid_bottom_left"
+        if not has_bottom and not has_right:
+            return "solid_bottom_right"
+
+        # Edge cases
+        if not has_top:
+            return "solid_top"
+        if not has_bottom:
+            return "solid_bottom"
+        if not has_left:
+            return "solid_left"
+        if not has_right:
+            return "solid_right"
+
+        # Interior
+        return "solid_middle"
+
+    def _apply_auto_tiling(self) -> None:
+        """Apply auto-tiling to all solid tiles."""
+        for tile in self.solid_tiles:
+            sprite_name = self._compute_auto_tile_sprite(tile)
+            tile.set_sprite(sprite_name)
+
+        # Apply platform sprite
+        for tile in self.platform_tiles:
+            tile.set_sprite("platform")
 
     def load_from_file(self, filepath: str) -> None:
         """Load level from JSON file."""
@@ -83,22 +185,39 @@ class Level:
         self.height = data.get("height", SCREEN_HEIGHT)
         self.player_start = tuple(data.get("player_start", [100, 100]))
         self.is_boss_level = data.get("is_boss_level", False)
+        self.background_type = data.get("background", "outdoor")
+        # Boss levels default to ship interior if not specified
+        if self.is_boss_level and "background" not in data:
+            self.background_type = "ship_interior"
         self.boss = None
 
         # Load tiles
         for tile_data in data.get("tiles", []):
+            tile_type = tile_data.get("type", "solid")
+            # Support explicit sprite override from JSON
+            sprite_name = tile_data.get("sprite")
+
             tile = Tile(
                 tile_data["x"] * TILE_SIZE,
                 tile_data["y"] * TILE_SIZE,
-                tile_data.get("type", "solid")
+                tile_type,
+                sprite_name
             )
             self.tiles.add(tile)
+
+            # Track in grid for auto-tiling
+            self._tile_grid[(tile.grid_x, tile.grid_y)] = tile
 
             # Sort into collision lists
             if tile.tile_type == "platform":
                 self.platform_tiles.append(tile)
-            elif tile.tile_type != "decoration":
+            elif tile.tile_type == "decoration":
+                self.decoration_tiles.append(tile)
+            else:
                 self.solid_tiles.append(tile)
+
+        # Apply auto-tiling (assigns sprites based on neighbors)
+        self._apply_auto_tiling()
 
         # Load enemies
         for enemy_data in data.get("enemies", []):
@@ -163,26 +282,33 @@ class Level:
             tile = Tile(x, SCREEN_HEIGHT - TILE_SIZE, "solid")
             self.tiles.add(tile)
             self.solid_tiles.append(tile)
+            self._tile_grid[(tile.grid_x, tile.grid_y)] = tile
 
         # Some solid platforms
         for x in range(200, 400, TILE_SIZE):
             tile = Tile(x, SCREEN_HEIGHT - TILE_SIZE * 4, "solid")
             self.tiles.add(tile)
             self.solid_tiles.append(tile)
+            self._tile_grid[(tile.grid_x, tile.grid_y)] = tile
 
         # One-way platform
         for x in range(500, 700, TILE_SIZE):
             tile = Tile(x, SCREEN_HEIGHT - TILE_SIZE * 6, "platform")
             self.tiles.add(tile)
             self.platform_tiles.append(tile)
+            self._tile_grid[(tile.grid_x, tile.grid_y)] = tile
 
         for x in range(800, 1000, TILE_SIZE):
             tile = Tile(x, SCREEN_HEIGHT - TILE_SIZE * 3, "solid")
             self.tiles.add(tile)
             self.solid_tiles.append(tile)
+            self._tile_grid[(tile.grid_x, tile.grid_y)] = tile
 
         self.width = 1200
         self.player_start = (100, SCREEN_HEIGHT - TILE_SIZE * 3)
+
+        # Apply auto-tiling
+        self._apply_auto_tiling()
 
     def check_collision_x(self, player) -> None:
         """Handle horizontal collision with solid tiles only."""
@@ -276,8 +402,14 @@ class Level:
 
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw all level elements."""
-        # Draw tiles
-        for tile in self.tiles:
+        # Draw decoration tiles first (behind everything)
+        for tile in self.decoration_tiles:
+            tile.draw(surface, camera_offset)
+
+        # Draw solid tiles and platforms
+        for tile in self.solid_tiles:
+            tile.draw(surface, camera_offset)
+        for tile in self.platform_tiles:
             tile.draw(surface, camera_offset)
 
         # Draw collectibles

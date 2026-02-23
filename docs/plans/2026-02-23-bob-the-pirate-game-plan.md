@@ -259,12 +259,12 @@ All enemy types including a functional boss fight.
 - [x] Sprite generator tool: `tools/generate_player_sprites.py`
 - [x] Comprehensive Player tests: `tests/test_player.py` (48 tests)
 
-### Phase 8C: Tiles & Environment (32x32)
-- [ ] Solid ground tiles (top, middle, edges, corners)
-- [ ] One-way platform tile
-- [ ] Decorations (crates, barrels, ropes, anchors)
-- [ ] Update Level class to use tile sprites
-- [ ] Background layers (sky, clouds, distant scenery)
+### Phase 8C: Tiles & Environment (32x32) ✅
+- [x] Solid ground tiles (top, middle, edges, corners)
+- [x] One-way platform tile
+- [x] Decorations (crates, barrels, ropes, anchors)
+- [x] Update Level class to use tile sprites
+- [x] Background layers (sky, clouds, distant scenery)
 
 ### Phase 8D: Collectibles & Items
 - [ ] Treasure chest (32x24)

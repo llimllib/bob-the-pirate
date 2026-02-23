@@ -7,6 +7,7 @@ from game.level import Level
 from game.player import Player
 from game.powerups import GhostShield, Parrot
 from game.settings import BLACK, FPS, SCREEN_HEIGHT, SCREEN_WIDTH, SKY_BLUE, TITLE, WHITE
+from game.tiles import get_background_layers
 from game.ui import HUD
 
 
@@ -48,6 +49,9 @@ class Game:
         # Power-up entities
         self.parrot = None
         self.shield = None
+
+        # Background layers (loaded lazily)
+        self.backgrounds = None
 
         # Fonts
         self.title_font = pygame.font.Font(None, 72)
@@ -105,6 +109,10 @@ class Game:
         self.score = 0
         self.parrot = None
         self.shield = None
+
+        # Load background layers (lazy init) and set type based on level
+        self.backgrounds = get_background_layers()
+        self.backgrounds.set_background_type(self.level.background_type)
 
         self.state = GameState.PLAYING
 
@@ -293,6 +301,10 @@ class Game:
         # Update camera
         self.camera.update(self.player.rect)
 
+        # Update background animations
+        if self.backgrounds:
+            self.backgrounds.update()
+
         # Debug output
         self.frame_count += 1
         if self.debug and self.frame_count % 30 == 0:
@@ -359,11 +371,19 @@ class Game:
 
     def _draw_game(self) -> None:
         """Draw the gameplay screen."""
-        self.screen.fill(SKY_BLUE)
-
         offset = self.camera.get_offset()
+        camera_x = offset[0]
 
-        # Draw level
+        # Draw background layers (parallax)
+        if self.backgrounds:
+            self.backgrounds.draw(
+                self.screen, camera_x, SCREEN_WIDTH, SCREEN_HEIGHT
+            )
+        else:
+            # Fallback to solid color
+            self.screen.fill(SKY_BLUE)
+
+        # Draw level (tiles, collectibles, enemies)
         self.level.draw(self.screen, offset)
 
         # Draw player
