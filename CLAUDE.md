@@ -92,7 +92,8 @@ Level boundaries prevent player from walking off left/right edges.
 Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 - `name` - Level display name
 - `width`, `height` - Level dimensions in pixels
-- `is_boss_level` - (optional) true for boss arenas
+- `is_boss_level` - (optional) true for boss arenas (Admiral fight)
+- `requires_miniboss_defeat` - (optional) true for miniboss levels (exit unlocks when miniboss defeated instead of treasure collected)
 - `tiles[]` - x,y grid positions (multiplied by TILE_SIZE), type: "solid", "platform", "decoration"
 - `enemies[]` - type (sailor/musketeer/officer/cannon/bosun/admiral), position, optional params (patrol_distance, faces_right, arena_left, arena_right)
 - `collectibles[]` - type (treasure/coin/rum/flag/loot), position, optional powerup type for loot chests
@@ -111,12 +112,12 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 **Current Status**: Phases 1-11 complete (except 8G). Full gameplay with 6 levels, miniboss, final boss, full audio, and polished UI.
 
 **Levels Available**:
-1. Port Town (Tutorial)
-2. HMS Revenge (Ship)
-3. Cliff Fortress (Vertical)
-4. The Armory (Miniboss - Bosun)
-5. Governor's Mansion (Challenge)
-6. Admiral's Quarters (Final Boss)
+1. Port Town (Tutorial) - Collect treasure to exit
+2. HMS Revenge (Ship) - Collect treasure to exit
+3. Cliff Fortress (Vertical) - Collect treasure to exit
+4. The Armory (Miniboss) - Defeat the Bosun to exit
+5. Governor's Mansion (Challenge) - Collect treasure to exit
+6. Admiral's Quarters (Final Boss) - Defeat the Admiral to win
 
 **Next Up**: Phase 8G (Effects) and Phase 12 (Polish & Release)
 
@@ -148,6 +149,16 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 | BARREL_ROLL_COOLDOWN | 45 | 0.75 seconds |
 | ANCHOR_SLAM_DAMAGE | 2 | AoE damage on landing |
 | ANCHOR_SLAM_RADIUS | 50 | Damage radius in pixels |
+
+## Level Design Guidelines
+
+When designing levels, keep Bob's physics in mind:
+- **Max jump height**: ~4.4 tiles (140 pixels) - don't require jumps higher than 4 tiles
+- **Max horizontal jump**: ~5.8 tiles (187 pixels) at same height - gaps should be ≤5 tiles
+- **Player size**: 32x48 pixels (1x1.5 tiles) - passages need 2+ tiles vertical clearance
+- **Ground level**: Usually y=17 for 600px levels, y=20 for 700px levels, y=24 for 1000px levels
+
+For vertical platforming sections, use stepping stone platforms spaced 3-4 tiles apart vertically and within 4-5 tiles horizontally.
 
 ## Adding New Features
 
