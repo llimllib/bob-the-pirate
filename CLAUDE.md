@@ -108,7 +108,7 @@ Levels are JSON files in `levels/`. See `levels/level1.json` for structure:
 
 See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap.
 
-**Current Status**: Phases 1-9 and 11 complete. Full gameplay with 6 levels, miniboss, final boss, and full audio.
+**Current Status**: Phases 1-11 complete (except 8G). Full gameplay with 6 levels, miniboss, final boss, full audio, and polished UI.
 
 **Levels Available**:
 1. Port Town (Tutorial)
@@ -118,7 +118,7 @@ See `docs/plans/2026-02-23-bob-the-pirate-game-plan.md` for the 12-phase roadmap
 5. Governor's Mansion (Challenge)
 6. Admiral's Quarters (Final Boss)
 
-**Next Up**: Phase 8G (Effects) and Phase 10 (Menus & UI Polish)
+**Next Up**: Phase 8G (Effects) and Phase 12 (Polish & Release)
 
 ## Code Conventions
 

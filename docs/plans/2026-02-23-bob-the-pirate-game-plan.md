@@ -363,17 +363,28 @@ Six complete, playable levels with miniboss and final boss.
 
 ---
 
-## Phase 10: Menus & UI Polish
+## Phase 10: Menus & UI Polish ✅
 **Estimated Time**: 1 Claude session
 
 ### Goals
-- [ ] Title screen
-- [ ] Pause menu
-- [ ] Game over screen
-- [ ] Victory screen
-- [ ] Level intro cards
-- [ ] Improved HUD design
-- [ ] Screen transitions
+- [x] Title screen (animated ocean waves, pirate-themed level select)
+- [x] Pause menu (styled overlay with resume/quit options)
+- [x] Game over screen (animated, retry/quit options)
+- [x] Victory screen (fireworks, score counting animation)
+- [x] Level intro cards (fade in/out with level name)
+- [x] Improved HUD design (styled hearts, powerup bars, animated coins)
+- [x] Screen transitions (fade in/out between states)
+
+### Implementation Details
+- New `game/screens.py` module with reusable screen classes
+- `TitleScreen` - Animated title, level selection with descriptions
+- `PauseMenu` - Navigation with up/down, visual selection
+- `GameOverScreen` - Score display, shake animation
+- `LevelCompleteScreen` - Stats display, celebration effects
+- `VictoryScreen` - Fireworks, score counting, congratulations
+- `LevelIntroCard` - Brief display before gameplay starts
+- `ScreenTransition` - Fade effects with callbacks
+- HUD improvements: pixel-art hearts, powerup timer bars with warnings
 
 ### Deliverable
 Complete menu system and polished UI.

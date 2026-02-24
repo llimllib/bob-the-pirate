@@ -113,22 +113,31 @@ class TestGameStates:
     """Tests for game state transitions."""
 
     def test_menu_level_selection(self):
-        """Menu should allow level selection."""
+        """Menu should allow level selection via title screen."""
         game = Game()
 
         assert game.state == GameState.MENU
-        assert game.selected_level == 0
-        assert len(game.available_levels) >= 3
+        assert game.title_screen.selected_level == 0
+        assert len(game.title_screen.levels) >= 3
 
     def test_boss_defeated_returns_to_menu(self):
-        """BOSS_DEFEATED state should allow return to menu."""
+        """BOSS_DEFEATED state should allow return to menu via transition."""
         game = Game()
         game.state = GameState.BOSS_DEFEATED
+        game.victory_screen.frame = 100  # Past the wait period
 
         # Simulate ENTER key
         event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
         pygame.event.post(event)
         game.handle_events()
+
+        # Should start transition (fade out then go to menu)
+        # The actual menu state happens after transition completes
+        assert game.transition.active or game.state == GameState.MENU
+
+        # Complete the transition
+        while game.transition.active:
+            game.transition.update()
 
         assert game.state == GameState.MENU
 

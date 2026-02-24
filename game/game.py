@@ -7,11 +7,19 @@ from game.camera import Camera
 from game.level import Level
 from game.player import Player
 from game.powerups import GhostShield, Monkey, Parrot, PlayerCannonball
+from game.screens import (
+    GameOverScreen,
+    LevelCompleteScreen,
+    LevelIntroCard,
+    PauseMenu,
+    ScreenTransition,
+    TitleScreen,
+    VictoryScreen,
+)
 from game.settings import (
     ANCHOR_SLAM_DAMAGE,
     ANCHOR_SLAM_RADIUS,
     BARREL_ROLL_COOLDOWN,
-    BLACK,
     FPS,
     MAGNET_RANGE,
     MAGNET_STRENGTH,
@@ -19,7 +27,6 @@ from game.settings import (
     SCREEN_WIDTH,
     SKY_BLUE,
     TITLE,
-    WHITE,
 )
 from game.tiles import get_background_layers
 from game.ui import HUD
@@ -29,6 +36,7 @@ class GameState:
     """Enum for game states."""
     MENU = "menu"
     PLAYING = "playing"
+    LEVEL_INTRO = "level_intro"
     PAUSED = "paused"
     GAME_OVER = "game_over"
     LEVEL_COMPLETE = "level_complete"
@@ -69,20 +77,18 @@ class Game:
         # Background layers (loaded lazily)
         self.backgrounds = None
 
-        # Fonts
-        self.title_font = pygame.font.Font(None, 72)
-        self.menu_font = pygame.font.Font(None, 36)
+        # Screen managers
+        self.title_screen = TitleScreen()
+        self.pause_menu = PauseMenu()
+        self.game_over_screen = GameOverScreen()
+        self.level_complete_screen = LevelCompleteScreen()
+        self.victory_screen = VictoryScreen()
+        self.level_intro = LevelIntroCard()
+        self.transition = ScreenTransition()
 
-        # Level selection for menu
-        self.available_levels = [
-            ("levels/level1.json", "1 - Port Town", "level1.wav"),
-            ("levels/level2.json", "2 - HMS Revenge", "level2.wav"),
-            ("levels/level3.json", "3 - Cliff Fortress", "level3.wav"),
-            ("levels/level4.json", "4 - The Armory (Miniboss)", "level4.wav"),
-            ("levels/level5.json", "5 - Governor's Mansion", "level5.wav"),
-            ("levels/boss_arena.json", "B - Admiral's Quarters (Boss)", "boss.wav"),
-        ]
-        self.selected_level = 0
+        # Current level info (for retrying)
+        self.current_level_file = "levels/level1.json"
+        self.current_level_music = "level1.wav"
 
         # Track player states for sound triggers
         self.was_on_ground = True
@@ -163,7 +169,7 @@ class Game:
         self.backgrounds.set_background_type(self.level.background_type)
 
         # Find and play appropriate music for this level
-        for lf, _, music in self.available_levels:
+        for lf, _, _, music in self.title_screen.levels:
             if lf == level_file:
                 play_music(music)
                 break
@@ -180,23 +186,33 @@ class Game:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
+                # Don't process input during transitions
+                if self.transition.active:
+                    continue
+
                 if self.state == GameState.MENU:
-                    if event.key == pygame.K_RETURN:
-                        play_sound("menu_confirm")
-                        level_file = self.available_levels[self.selected_level][0]
-                        self.new_game(level_file)
-                    elif event.key == pygame.K_UP:
-                        play_sound("menu_select")
-                        self.selected_level = (self.selected_level - 1) % len(self.available_levels)
-                    elif event.key == pygame.K_DOWN:
-                        play_sound("menu_select")
-                        self.selected_level = (self.selected_level + 1) % len(self.available_levels)
-                    elif event.key == pygame.K_ESCAPE:
+                    if event.key == pygame.K_ESCAPE:
                         self.running = False
+                    else:
+                        result = self.title_screen.handle_input(event.key)
+                        if result:
+                            # Level selected
+                            play_sound("menu_confirm")
+                            level_file, music_file = result
+                            self._start_level_with_transition(level_file, music_file)
+                        elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                            play_sound("menu_select")
+
+                elif self.state == GameState.LEVEL_INTRO:
+                    # Allow skipping intro with any key
+                    if event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+                        self.level_intro.active = False
+                        self.state = GameState.PLAYING
 
                 elif self.state == GameState.PLAYING:
                     if event.key == pygame.K_ESCAPE:
                         self.state = GameState.PAUSED
+                        self.pause_menu.reset()
                         self.audio.pause_music()
                     elif event.key == pygame.K_q:
                         if self.player.attack():
@@ -230,37 +246,91 @@ class Game:
                             play_sound("slash")  # Slam start sound
 
                 elif self.state == GameState.PAUSED:
-                    if event.key == pygame.K_ESCAPE:
+                    result = self.pause_menu.handle_input(event.key)
+                    if result == "resume":
                         self.state = GameState.PLAYING
                         self.audio.unpause_music()
-                    elif event.key == pygame.K_q:
-                        self.state = GameState.MENU
-                        play_music("menu.wav")
+                    elif result == "quit":
+                        self._return_to_menu_with_transition()
+                    elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                        play_sound("menu_select")
 
                 elif self.state == GameState.GAME_OVER:
-                    if event.key == pygame.K_RETURN:
+                    result = self.game_over_screen.handle_input(event.key)
+                    if result == "retry":
                         play_sound("menu_confirm")
-                        self.new_game()
-                    elif event.key == pygame.K_ESCAPE:
-                        self.state = GameState.MENU
-                        play_music("menu.wav")
+                        self._start_level_with_transition(
+                            self.current_level_file, self.current_level_music
+                        )
+                    elif result == "quit":
+                        play_sound("menu_confirm")
+                        self._return_to_menu_with_transition()
+                    elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                        play_sound("menu_select")
 
                 elif self.state == GameState.LEVEL_COMPLETE:
-                    if event.key == pygame.K_RETURN:
+                    result = self.level_complete_screen.handle_input(event.key)
+                    if result == "continue":
                         play_sound("menu_confirm")
-                        # TODO: Load next level
-                        self.state = GameState.MENU
-                        play_music("menu.wav")
+                        self._return_to_menu_with_transition()
+                    elif result == "quit":
+                        self._return_to_menu_with_transition()
 
                 elif self.state == GameState.BOSS_DEFEATED:
-                    if event.key == pygame.K_RETURN:
+                    result = self.victory_screen.handle_input(event.key)
+                    if result == "continue":
                         play_sound("menu_confirm")
-                        self.state = GameState.MENU
-                        play_music("menu.wav")
+                        self._return_to_menu_with_transition()
+
+    def _start_level_with_transition(self, level_file: str, music_file: str) -> None:
+        """Start a level with fade transition."""
+        self.current_level_file = level_file
+        self.current_level_music = music_file
+
+        def start_level():
+            self.new_game(level_file)
+            # Show level intro card
+            level_name = self.level.name if self.level else "Unknown"
+            subtitle = "Defeat the boss!" if self.level and self.level.is_boss_level else "Collect all treasure!"
+            self.level_intro.start(level_name, subtitle)
+            self.state = GameState.LEVEL_INTRO
+            self.transition.start_fade_in()
+
+        self.transition.start_fade_out(start_level)
+
+    def _return_to_menu_with_transition(self) -> None:
+        """Return to menu with fade transition."""
+        def go_to_menu():
+            self.state = GameState.MENU
+            play_music("menu.wav")
+            self.transition.start_fade_in()
+
+        self.transition.start_fade_out(go_to_menu)
 
     def update(self) -> None:
         """Update game state."""
-        if self.state != GameState.PLAYING:
+        # Update transition
+        self.transition.update()
+
+        # Update screens based on state
+        if self.state == GameState.MENU:
+            self.title_screen.update()
+            return
+        elif self.state == GameState.LEVEL_INTRO:
+            if not self.level_intro.update():
+                # Intro complete, start playing
+                self.state = GameState.PLAYING
+            return
+        elif self.state == GameState.GAME_OVER:
+            self.game_over_screen.update()
+            return
+        elif self.state == GameState.LEVEL_COMPLETE:
+            self.level_complete_screen.update()
+            return
+        elif self.state == GameState.BOSS_DEFEATED:
+            self.victory_screen.update()
+            return
+        elif self.state != GameState.PLAYING:
             return
 
         # Get input
@@ -517,8 +587,10 @@ class Game:
                     boss.summon_pending = False
             else:
                 # Boss is dead!
-                self.state = GameState.BOSS_DEFEATED
                 self.score += 1000  # Boss bonus
+                self.state = GameState.BOSS_DEFEATED
+                self.victory_screen.set_score(self.score)
+                self.victory_screen.reset()
                 play_sound("boss_death")
                 play_music("victory.wav")
 
@@ -561,6 +633,8 @@ class Game:
         # Check game over
         if self.player.lives <= 0:
             self.state = GameState.GAME_OVER
+            self.game_over_screen.set_score(self.score)
+            self.game_over_screen.reset()
             play_sound("game_over")
             stop_music()
 
@@ -568,6 +642,12 @@ class Game:
         if self.level.exit_door and not self.level.exit_door.locked:
             if self.player.rect.colliderect(self.level.exit_door.rect):
                 self.state = GameState.LEVEL_COMPLETE
+                self.level_complete_screen.set_stats(
+                    self.score,
+                    self.level.treasure_collected,
+                    self.level.treasure_total
+                )
+                self.level_complete_screen.reset()
                 play_sound("level_complete")
                 stop_music()
 
@@ -586,66 +666,26 @@ class Game:
     def draw(self) -> None:
         """Render the game."""
         if self.state == GameState.MENU:
-            self._draw_menu()
+            self.title_screen.draw(self.screen)
+        elif self.state == GameState.LEVEL_INTRO:
+            self._draw_game()
+            self.level_intro.draw(self.screen)
         elif self.state == GameState.PLAYING:
             self._draw_game()
         elif self.state == GameState.PAUSED:
             self._draw_game()
-            self._draw_pause_overlay()
+            self.pause_menu.draw(self.screen)
         elif self.state == GameState.GAME_OVER:
-            self._draw_game_over()
+            self.game_over_screen.draw(self.screen)
         elif self.state == GameState.LEVEL_COMPLETE:
-            self._draw_level_complete()
+            self.level_complete_screen.draw(self.screen)
         elif self.state == GameState.BOSS_DEFEATED:
-            self._draw_boss_defeated()
+            self.victory_screen.draw(self.screen)
+
+        # Draw transition overlay on top of everything
+        self.transition.draw(self.screen)
 
         pygame.display.flip()
-
-    def _draw_menu(self) -> None:
-        """Draw the main menu."""
-        self.screen.fill(SKY_BLUE)
-
-        title = self.title_font.render("BOB THE PIRATE", True, BLACK)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
-        self.screen.blit(title, title_rect)
-
-        subtitle = self.menu_font.render("A Pirate's Quest for Treasure", True, (50, 50, 50))
-        sub_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 110))
-        self.screen.blit(subtitle, sub_rect)
-
-        # Level selection
-        level_title = self.menu_font.render("Select Level (UP/DOWN):", True, BLACK)
-        self.screen.blit(level_title, (SCREEN_WIDTH // 2 - 130, 150))
-
-        for i, (_, name, _) in enumerate(self.available_levels):
-            color = (255, 215, 0) if i == self.selected_level else WHITE
-            prefix = "> " if i == self.selected_level else "  "
-            level_text = self.menu_font.render(f"{prefix}{name}", True, color)
-            self.screen.blit(level_text, (SCREEN_WIDTH // 2 - 150, 185 + i * 30))
-
-        # Position prompts below level list
-        prompt_y = 185 + len(self.available_levels) * 30 + 20
-
-        start_text = self.menu_font.render("Press ENTER to Start", True, WHITE)
-        start_rect = start_text.get_rect(center=(SCREEN_WIDTH // 2, prompt_y))
-        self.screen.blit(start_text, start_rect)
-
-        quit_text = self.menu_font.render("Press ESC to Quit", True, WHITE)
-        quit_rect = quit_text.get_rect(center=(SCREEN_WIDTH // 2, prompt_y + 35))
-        self.screen.blit(quit_text, quit_rect)
-
-        # Controls - bottom left
-        controls = [
-            "Controls:",
-            "Arrow Keys / WASD - Move",
-            "Space / W / Up - Jump",
-            "Q - Attack | E - Cannon (if equipped)",
-            "Double-tap Left/Right - Barrel Roll",
-            "Down (in air) - Anchor Slam",
-        ]
-        for i, line in enumerate(controls):
-            text = self.menu_font.render(line, True, (30, 30, 30))
-            self.screen.blit(text, (50, 430 + i * 25))
 
     def _draw_game(self) -> None:
         """Draw the gameplay screen."""
@@ -689,78 +729,6 @@ class Game:
 
         # Draw HUD
         self.hud.draw(self.screen, self.player, self.level, self.score)
-
-    def _draw_pause_overlay(self) -> None:
-        """Draw pause menu overlay."""
-        # Semi-transparent overlay
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.fill(BLACK)
-        overlay.set_alpha(128)
-        self.screen.blit(overlay, (0, 0))
-
-        pause_text = self.title_font.render("PAUSED", True, WHITE)
-        pause_rect = pause_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
-        self.screen.blit(pause_text, pause_rect)
-
-        resume_text = self.menu_font.render("Press ESC to Resume", True, WHITE)
-        resume_rect = resume_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
-        self.screen.blit(resume_text, resume_rect)
-
-        quit_text = self.menu_font.render("Press Q to Quit to Menu", True, WHITE)
-        quit_rect = quit_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60))
-        self.screen.blit(quit_text, quit_rect)
-
-    def _draw_game_over(self) -> None:
-        """Draw game over screen."""
-        self.screen.fill((50, 0, 0))
-
-        text = self.title_font.render("GAME OVER", True, WHITE)
-        text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
-        self.screen.blit(text, text_rect)
-
-        retry = self.menu_font.render("Press ENTER to Retry", True, WHITE)
-        retry_rect = retry.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30))
-        self.screen.blit(retry, retry_rect)
-
-        menu = self.menu_font.render("Press ESC for Menu", True, WHITE)
-        menu_rect = menu.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 70))
-        self.screen.blit(menu, menu_rect)
-
-    def _draw_level_complete(self) -> None:
-        """Draw level complete screen."""
-        self.screen.fill((0, 50, 0))
-
-        text = self.title_font.render("LEVEL COMPLETE!", True, WHITE)
-        text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
-        self.screen.blit(text, text_rect)
-
-        cont = self.menu_font.render("Press ENTER to Continue", True, WHITE)
-        cont_rect = cont.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30))
-        self.screen.blit(cont, cont_rect)
-
-    def _draw_boss_defeated(self) -> None:
-        """Draw boss defeated victory screen."""
-        self.screen.fill((50, 30, 0))
-
-        # Victory title
-        text = self.title_font.render("VICTORY!", True, (255, 215, 0))
-        text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 80))
-        self.screen.blit(text, text_rect)
-
-        # Boss name
-        boss_text = self.menu_font.render("Vice-Admiral Garp Defeated!", True, WHITE)
-        boss_rect = boss_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
-        self.screen.blit(boss_text, boss_rect)
-
-        # Score
-        score_text = self.menu_font.render(f"Final Score: {self.score}", True, (255, 215, 0))
-        score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30))
-        self.screen.blit(score_text, score_rect)
-
-        # Continue prompt
-        cont = self.menu_font.render("Press ENTER for Menu", True, WHITE)
-        cont_rect = cont.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 90))
-        self.screen.blit(cont, cont_rect)
 
     def _print_debug_info(self) -> None:
         """Print debug information to console."""
