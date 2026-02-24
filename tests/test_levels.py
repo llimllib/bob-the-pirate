@@ -3,7 +3,7 @@
 import pygame
 import pytest
 
-from game.enemies import Admiral, Cannon
+from game.enemies import Admiral, Bosun, Cannon
 from game.level import Level
 
 
@@ -80,6 +80,83 @@ class TestLevelLoading:
         # Check that cannons have facing set
         for cannon in cannons:
             assert hasattr(cannon, 'faces_right')
+
+
+class TestMinibossLevelBehavior:
+    """Tests for miniboss level (level 4) behavior."""
+
+    def test_level4_requires_miniboss_defeat(self):
+        """Level 4 should require miniboss defeat to complete."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        assert level.requires_miniboss_defeat
+        assert level.miniboss is not None
+        assert isinstance(level.miniboss, Bosun)
+
+    def test_level4_no_treasure_required(self):
+        """Level 4 should have no treasure chests."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        assert level.treasure_total == 0
+
+    def test_exit_locked_until_miniboss_defeated(self):
+        """Exit should remain locked until miniboss is defeated."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        # Exit should be locked initially
+        assert level.exit_door is not None
+        assert level.exit_door.locked
+
+        # Create a mock player with rect
+        class MockPlayer:
+            def __init__(self):
+                self.rect = pygame.Rect(100, 400, 32, 48)
+
+        player = MockPlayer()
+        level.update(player)
+
+        # Should still be locked
+        assert level.exit_door.locked
+
+    def test_exit_unlocks_when_miniboss_defeated(self):
+        """Exit should unlock when miniboss is defeated."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        # Simulate miniboss defeat
+        level.miniboss.health = 0
+        level.miniboss.active = False
+
+        # Create a mock player with rect
+        class MockPlayer:
+            def __init__(self):
+                self.rect = pygame.Rect(100, 400, 32, 48)
+
+        player = MockPlayer()
+        level.update(player)
+
+        # Should be unlocked now
+        assert not level.exit_door.locked
+        assert level.miniboss_defeated
+
+    def test_miniboss_in_enemies_group(self):
+        """Miniboss should be in the enemies sprite group."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        assert level.miniboss in level.enemies
+
+    def test_level4_has_other_enemies(self):
+        """Level 4 should have other enemies besides the miniboss."""
+        level = Level()
+        level.load_from_file("levels/level4.json")
+
+        # Should have sailors, musketeers, etc.
+        non_bosun_enemies = [e for e in level.enemies if not isinstance(e, Bosun)]
+        assert len(non_bosun_enemies) > 0
 
 
 class TestBossLevelBehavior:

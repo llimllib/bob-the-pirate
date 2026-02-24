@@ -100,6 +100,11 @@ class Level:
         self.is_boss_level = False
         self.boss = None
 
+        # Miniboss level support (requires defeating miniboss to exit)
+        self.requires_miniboss_defeat = False
+        self.miniboss = None
+        self.miniboss_defeated = False
+
         # Door unlock flag (for sound)
         self.door_just_unlocked = False
 
@@ -189,6 +194,7 @@ class Level:
         self.height = data.get("height", SCREEN_HEIGHT)
         self.player_start = tuple(data.get("player_start", [100, 100]))
         self.is_boss_level = data.get("is_boss_level", False)
+        self.requires_miniboss_defeat = data.get("requires_miniboss_defeat", False)
         self.background_type = data.get("background", "outdoor")
         # Boss levels default to ship interior if not specified
         if self.is_boss_level and "background" not in data:
@@ -257,6 +263,9 @@ class Level:
                 arena_left = enemy_data.get("arena_left", x - 150)
                 arena_right = enemy_data.get("arena_right", x + 150)
                 enemy.set_arena_bounds(arena_left, arena_right)
+                # Track as miniboss if level requires defeating it
+                if self.requires_miniboss_defeat:
+                    self.miniboss = enemy
             else:
                 continue
 
@@ -434,9 +443,25 @@ class Level:
         for item in self.collectibles:
             item.update()
 
-        # Check if all treasure collected
-        if self.treasure_collected >= self.treasure_total and self.exit_door:
-            if self.exit_door.locked:
+        # Check miniboss defeat (for miniboss levels)
+        if self.requires_miniboss_defeat and self.miniboss:
+            if not self.miniboss.active and not self.miniboss_defeated:
+                self.miniboss_defeated = True
+
+        # Check if exit should unlock
+        if self.exit_door and self.exit_door.locked:
+            should_unlock = False
+
+            if self.requires_miniboss_defeat:
+                # Miniboss levels: unlock when miniboss is defeated
+                if self.miniboss_defeated:
+                    should_unlock = True
+            else:
+                # Normal levels: unlock when all treasure collected
+                if self.treasure_collected >= self.treasure_total:
+                    should_unlock = True
+
+            if should_unlock:
                 self.exit_door.unlock()
                 self.door_just_unlocked = True
 

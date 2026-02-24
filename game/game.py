@@ -291,7 +291,12 @@ class Game:
             self.new_game(level_file)
             # Show level intro card
             level_name = self.level.name if self.level else "Unknown"
-            subtitle = "Defeat the boss!" if self.level and self.level.is_boss_level else "Collect all treasure!"
+            if self.level and self.level.is_boss_level:
+                subtitle = "Defeat the boss!"
+            elif self.level and self.level.requires_miniboss_defeat:
+                subtitle = "Defeat the Bosun!"
+            else:
+                subtitle = "Collect all treasure!"
             self.level_intro.start(level_name, subtitle)
             self.state = GameState.LEVEL_INTRO
             self.transition.start_fade_in()

@@ -2766,6 +2766,116 @@
       "x": 148,
       "y": 11,
       "type": "solid"
+    },
+    {
+      "x": 11,
+      "y": 18,
+      "type": "platform"
+    },
+    {
+      "x": 12,
+      "y": 18,
+      "type": "platform"
+    },
+    {
+      "x": 13,
+      "y": 18,
+      "type": "platform"
+    },
+    {
+      "x": 110,
+      "y": 12,
+      "type": "platform"
+    },
+    {
+      "x": 111,
+      "y": 12,
+      "type": "platform"
+    },
+    {
+      "x": 112,
+      "y": 12,
+      "type": "platform"
+    },
+    {
+      "x": 4,
+      "y": 19,
+      "type": "platform"
+    },
+    {
+      "x": 5,
+      "y": 19,
+      "type": "platform"
+    },
+    {
+      "x": 41,
+      "y": 15,
+      "type": "platform"
+    },
+    {
+      "x": 42,
+      "y": 15,
+      "type": "platform"
+    },
+    {
+      "x": 58,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 59,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 72,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 73,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 106,
+      "y": 11,
+      "type": "platform"
+    },
+    {
+      "x": 107,
+      "y": 11,
+      "type": "platform"
+    },
+    {
+      "x": 126,
+      "y": 9,
+      "type": "platform"
+    },
+    {
+      "x": 127,
+      "y": 9,
+      "type": "platform"
+    },
+    {
+      "x": 128,
+      "y": 9,
+      "type": "platform"
+    },
+    {
+      "x": 132,
+      "y": 9,
+      "type": "platform"
+    },
+    {
+      "x": 133,
+      "y": 9,
+      "type": "platform"
+    },
+    {
+      "x": 134,
+      "y": 9,
+      "type": "platform"
     }
   ],
   "enemies": [

@@ -543,21 +543,6 @@
       "type": "solid"
     },
     {
-      "x": 37,
-      "y": 14,
-      "type": "solid"
-    },
-    {
-      "x": 37,
-      "y": 15,
-      "type": "solid"
-    },
-    {
-      "x": 37,
-      "y": 16,
-      "type": "solid"
-    },
-    {
       "x": 6,
       "y": 14,
       "type": "metal_platform"
@@ -958,21 +943,6 @@
   ],
   "collectibles": [
     {
-      "type": "treasure",
-      "x": 250,
-      "y": 400
-    },
-    {
-      "type": "treasure",
-      "x": 950,
-      "y": 400
-    },
-    {
-      "type": "treasure",
-      "x": 576,
-      "y": 352
-    },
-    {
       "type": "coin",
       "x": 150,
       "y": 512
@@ -1009,11 +979,6 @@
       "powerup": "shield"
     },
     {
-      "type": "treasure",
-      "x": 1350,
-      "y": 424
-    },
-    {
       "type": "coin",
       "x": 1280,
       "y": 496
@@ -1043,5 +1008,6 @@
   "exit": {
     "x": 1920,
     "y": 480
-  }
+  },
+  "requires_miniboss_defeat": true
 }
