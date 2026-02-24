@@ -197,7 +197,7 @@ class TestTitleScreen:
 
         assert result is not None
         assert result[0] == "levels/level1.json"
-        assert result[1] == "level1.wav"
+        assert result[1] == "level1.ogg"
 
     def test_update_advances_animation(self):
         """Update should advance animation frame."""

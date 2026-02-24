@@ -27,6 +27,12 @@ uv run ruff check . && uv run pyright && uv run python -m pytest tests/ -v
 
 # Install dependencies
 uv sync
+
+# Build for web (WASM)
+./scripts/build_web.sh
+
+# Test web build locally (opens http://localhost:8000)
+uv run pygbag .
 ```
 
 ## Debugging
@@ -179,13 +185,15 @@ For vertical platforming sections, use stepping stone platforms spaced 3-4 tiles
 from game.audio import play_sound, play_music, stop_music
 
 play_sound("jump")           # Play sound effect
-play_music("level1.wav")     # Start background music (loops)
+play_music("level1.ogg")     # Start background music (loops)
 stop_music()                 # Stop music
 ```
 
 **Available Sounds**: jump, land, slash, hit, hurt, death, coin, treasure, powerup, health, extra_life, enemy_death, shoot, cannon, parrot_attack, shield_hit, boss_hit, boss_death, door_unlock, menu_select, menu_confirm, level_complete, game_over
 
-**Available Music**: menu.wav, level1.wav, level2.wav, level3.wav, level4.wav, level5.wav, boss.wav, victory.wav
+**Available Music**: menu.ogg, level1.ogg, level2.ogg, level3.ogg, level4.ogg, level5.ogg, boss.ogg, victory.ogg
+
+**Note**: All audio files are OGG format for web compatibility.
 
 ### New Power-up
 1. Add power-up entity class to `powerups.py` if needed (like Parrot)

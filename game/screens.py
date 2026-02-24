@@ -178,12 +178,12 @@ class TitleScreen:
 
         # Available levels
         self.levels = [
-            ("levels/level1.json", "Port Town", "Tutorial", "level1.wav"),
-            ("levels/level2.json", "HMS Revenge", "Ship Combat", "level2.wav"),
-            ("levels/level3.json", "Cliff Fortress", "Vertical Climb", "level3.wav"),
-            ("levels/level4.json", "The Armory", "Miniboss", "level4.wav"),
-            ("levels/level5.json", "Governor's Mansion", "Challenge", "level5.wav"),
-            ("levels/boss_arena.json", "Admiral's Quarters", "Final Boss", "boss.wav"),
+            ("levels/level1.json", "Port Town", "Tutorial", "level1.ogg"),
+            ("levels/level2.json", "HMS Revenge", "Ship Combat", "level2.ogg"),
+            ("levels/level3.json", "Cliff Fortress", "Vertical Climb", "level3.ogg"),
+            ("levels/level4.json", "The Armory", "Miniboss", "level4.ogg"),
+            ("levels/level5.json", "Governor's Mansion", "Challenge", "level5.ogg"),
+            ("levels/boss_arena.json", "Admiral's Quarters", "Final Boss", "boss.ogg"),
         ]
 
     def update(self) -> None:

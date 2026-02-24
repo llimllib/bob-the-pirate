@@ -132,7 +132,7 @@ class TestSoundFilesExist:
     ])
     def test_sound_file_exists(self, sound_name: str):
         """Test that each expected sound file exists."""
-        filepath = f"assets/sounds/{sound_name}.wav"
+        filepath = f"assets/sounds/{sound_name}.ogg"
         assert os.path.exists(filepath), f"Sound file missing: {filepath}"
 
     @pytest.mark.parametrize("music_name", [
@@ -141,14 +141,14 @@ class TestSoundFilesExist:
     ])
     def test_music_file_exists(self, music_name: str):
         """Test that each expected music file exists."""
-        filepath = f"assets/music/{music_name}.wav"
+        filepath = f"assets/music/{music_name}.ogg"
         assert os.path.exists(filepath), f"Music file missing: {filepath}"
 
-    def test_sound_files_are_valid_wav(self):
+    def test_sound_files_are_valid_ogg(self):
         """Test that sound files can be loaded by pygame."""
         import pygame
         for filename in os.listdir("assets/sounds"):
-            if filename.endswith(".wav"):
+            if filename.endswith(".ogg"):
                 filepath = f"assets/sounds/{filename}"
                 # Should not raise an exception
                 sound = pygame.mixer.Sound(filepath)

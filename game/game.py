@@ -88,7 +88,7 @@ class Game:
 
         # Current level info (for retrying)
         self.current_level_file = "levels/level1.json"
-        self.current_level_music = "level1.wav"
+        self.current_level_music = "level1.ogg"
 
         # Track player states for sound triggers
         self.was_on_ground = True
@@ -101,7 +101,7 @@ class Game:
         self.audio = get_audio_manager()
 
         # Play menu music
-        play_music("menu.wav")
+        play_music("menu.ogg")
 
     def _try_damage_player(self, amount: int = 1) -> bool:
         """
@@ -307,7 +307,7 @@ class Game:
         """Return to menu with fade transition."""
         def go_to_menu():
             self.state = GameState.MENU
-            play_music("menu.wav")
+            play_music("menu.ogg")
             self.transition.start_fade_in()
 
         self.transition.start_fade_out(go_to_menu)
@@ -597,7 +597,7 @@ class Game:
                 self.victory_screen.set_score(self.score)
                 self.victory_screen.reset()
                 play_sound("boss_death")
-                play_music("victory.wav")
+                play_music("victory.ogg")
 
         # Check projectile collisions
         for projectile in self.level.projectiles:

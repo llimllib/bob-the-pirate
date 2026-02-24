@@ -36,8 +36,8 @@ class AudioManager:
             return
 
         for filename in os.listdir(sound_dir):
-            if filename.endswith(".wav"):
-                name = filename[:-4]  # Remove .wav extension
+            if filename.endswith(".ogg"):
+                name = filename[:-4]  # Remove .ogg extension
                 path = os.path.join(sound_dir, filename)
                 try:
                     self.sounds[name] = pygame.mixer.Sound(path)
