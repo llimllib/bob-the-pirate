@@ -90,6 +90,9 @@ class Game:
         self.current_level_file = "levels/level1.json"
         self.current_level_music = "level1.ogg"
 
+        # Unlocked secret levels (in-memory, resets on game close)
+        self.unlocked_secrets: set[str] = set()
+
         # Track player states for sound triggers
         self.was_on_ground = True
         self.was_jumping = False
@@ -484,6 +487,12 @@ class Game:
                 play_sound("health")
             elif item_type == "life":
                 play_sound("extra_life")
+            elif item_type == "secret_door":
+                # Unlock the secret level
+                unlocks = item.get("unlocks", "secret_crypt")
+                self.unlocked_secrets.add(unlocks)
+                self.title_screen.unlock_secret(unlocks)
+                play_sound("door_unlock")
 
         # Update parrot companion
         if self.parrot:

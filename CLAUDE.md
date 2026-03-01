@@ -25,6 +25,9 @@ uv run pyright
 # Run all checks (do this before committing!)
 uv run ruff check . && uv run pyright && uv run python -m pytest tests/ -v
 
+# Rebuild WASM build after changes (do this before committing!)
+./scripts/build_web.sh
+
 # Install dependencies
 uv sync
 

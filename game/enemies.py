@@ -459,13 +459,6 @@ class Officer(Enemy):
 
         surface.blit(frame, (draw_x, draw_y))
 
-        # Draw attack effect indicator
-        if self.attacking:
-            attack_box = self.get_attack_hitbox()
-            if attack_box:
-                draw_rect = attack_box.move(-camera_offset[0], -camera_offset[1])
-                pygame.draw.rect(surface, (200, 200, 0), draw_rect, 2)
-
 
 class Cannon(Enemy):
     """Stationary cannon that fires arcing cannonballs."""
@@ -1369,3 +1362,387 @@ class AdmiralBullet(Projectile):
         if not self.facing_right:
             frame = pygame.transform.flip(frame, True, False)
         surface.blit(frame, draw_rect)
+
+
+class GhostCaptain(Enemy):
+    """
+    Secret boss - Ghostly Pirate Captain with teleportation abilities.
+
+    Attacks:
+    - Spectral Slash - Long-range sword attack
+    - Teleport - Disappears and reappears near player
+    - Phase Mode - Briefly invulnerable while passing through player
+
+    Very high health, the hardest boss in the game.
+    """
+
+    # States
+    STATE_IDLE = "idle"
+    STATE_WALK = "walk"
+    STATE_SLASH = "slash"
+    STATE_TELEPORT = "teleport"
+    STATE_PHASE = "phase"
+    STATE_STUNNED = "stunned"
+
+    # Ghost colors
+    GHOST_COLOR = (100, 150, 180)
+    GHOST_GLOW = (150, 200, 230)
+
+    def __init__(self, x: int, y: int):
+        from game.settings import (
+            GHOST_CAPTAIN_ATTACK_COOLDOWN,
+            GHOST_CAPTAIN_HEALTH,
+            GHOST_CAPTAIN_HEIGHT,
+            GHOST_CAPTAIN_PHASE_DURATION,
+            GHOST_CAPTAIN_SPEED,
+            GHOST_CAPTAIN_TELEPORT_COOLDOWN,
+            GHOST_CAPTAIN_WIDTH,
+        )
+
+        super().__init__(x, y, GHOST_CAPTAIN_WIDTH, GHOST_CAPTAIN_HEIGHT,
+                         GHOST_CAPTAIN_HEALTH, self.GHOST_COLOR)
+
+        self.speed = GHOST_CAPTAIN_SPEED
+        self.attack_cooldown_duration = GHOST_CAPTAIN_ATTACK_COOLDOWN
+        self.teleport_cooldown_duration = GHOST_CAPTAIN_TELEPORT_COOLDOWN
+        self.phase_duration = GHOST_CAPTAIN_PHASE_DURATION
+
+        # AI state
+        self.state = self.STATE_IDLE
+        self.state_timer = 60
+        self.attack_cooldown = 0
+        self.teleport_cooldown = self.teleport_cooldown_duration
+        self.phase = 1  # Ghost Captain doesn't have phases, but UI expects it
+        self.summon_pending = False  # Ghost Captain doesn't summon, but game.py expects it
+
+        # Arena bounds
+        self.arena_left = x - 300
+        self.arena_right = x + 300
+        self.arena_top = 0
+        self.arena_bottom = 1200
+
+        # Teleport destination (set when teleporting)
+        self.teleport_target_x = x
+        self.teleport_target_y = y
+
+        # Visual effects
+        self.alpha = 255  # For fading during teleport/phase
+        self.damage_flash = 0
+        self.float_offset = 0  # Ghostly floating
+
+        # Create ghost sprite
+        self._create_ghost_sprite()
+
+    def _create_ghost_sprite(self) -> None:
+        """Create the ghostly captain sprite."""
+        from game.settings import GHOST_CAPTAIN_HEIGHT, GHOST_CAPTAIN_WIDTH
+
+        w, h = GHOST_CAPTAIN_WIDTH, GHOST_CAPTAIN_HEIGHT
+        self.base_image = pygame.Surface((w, h), pygame.SRCALPHA)
+
+        # Ghostly body (translucent)
+        body_color = (*self.GHOST_COLOR, 180)
+        pygame.draw.ellipse(self.base_image, body_color, (4, 20, w - 8, h - 20))
+
+        # Tattered coat tails (wavy bottom)
+        for i in range(5):
+            tail_x = 8 + i * 8
+            tail_h = 10 + (i % 2) * 5
+            pygame.draw.rect(self.base_image, body_color,
+                           (tail_x, h - tail_h - 5, 6, tail_h))
+
+        # Head
+        head_color = (*self.GHOST_GLOW, 200)
+        pygame.draw.circle(self.base_image, head_color, (w // 2, 16), 12)
+
+        # Glowing eyes
+        eye_color = (255, 100, 100, 255)
+        pygame.draw.circle(self.base_image, eye_color, (w // 2 - 5, 14), 3)
+        pygame.draw.circle(self.base_image, eye_color, (w // 2 + 5, 14), 3)
+
+        # Pirate hat
+        hat_color = (40, 40, 60, 220)
+        pygame.draw.rect(self.base_image, hat_color, (w // 2 - 14, 2, 28, 8))
+        pygame.draw.rect(self.base_image, hat_color, (w // 2 - 8, 0, 16, 10))
+
+        # Ghostly sword (always visible)
+        sword_color = (*self.GHOST_GLOW, 200)
+        pygame.draw.rect(self.base_image, sword_color, (w - 8, 30, 6, 30))
+        pygame.draw.rect(self.base_image, (200, 220, 255, 220), (w - 10, 28, 10, 4))
+
+        self.image = self.base_image.copy()
+
+    def set_arena_bounds(self, left: int, right: int, top: int = 0, bottom: int = 1200) -> None:
+        """Set the arena boundaries for the ghost captain."""
+        self.arena_left = left
+        self.arena_right = right
+        self.arena_top = top
+        self.arena_bottom = bottom
+
+    def take_damage(self, amount: int = 1) -> bool:
+        """Take damage - immune during phase mode."""
+        if self.state == self.STATE_PHASE:
+            return False  # Invulnerable during phase
+
+        if self.state == self.STATE_TELEPORT and self.alpha < 128:
+            return False  # Invulnerable while faded out
+
+        self.damage_flash = 15
+        self.state = self.STATE_STUNNED
+        self.state_timer = 30
+        return super().take_damage(amount)
+
+    def can_damage_player(self) -> bool:
+        """Check if ghost can damage player."""
+        # Can't damage during teleport fade or while stunned
+        if self.state == self.STATE_TELEPORT and self.alpha < 200:
+            return False
+        if self.state == self.STATE_STUNNED:
+            return False
+        return super().can_damage_player()
+
+    def update(self, player_rect: pygame.Rect = None) -> None:
+        """Update ghost captain AI."""
+        self.update_stun()
+
+        if not player_rect:
+            return
+
+        # Update timers
+        if self.damage_flash > 0:
+            self.damage_flash -= 1
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+        if self.teleport_cooldown > 0:
+            self.teleport_cooldown -= 1
+
+        self.state_timer -= 1
+
+        # Floating animation
+        self.float_offset = math.sin(pygame.time.get_ticks() * 0.005) * 4
+
+        # Face player (unless teleporting or phasing)
+        if self.state not in (self.STATE_TELEPORT, self.STATE_PHASE):
+            self.facing_right = player_rect.centerx > self.rect.centerx
+
+        # State machine
+        if self.state == self.STATE_STUNNED:
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_IDLE:
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_WALK:
+            self._do_walk(player_rect)
+            if self.state_timer <= 0:
+                self._choose_next_action(player_rect)
+
+        elif self.state == self.STATE_SLASH:
+            if self.state_timer <= 0:
+                self.state = self.STATE_IDLE
+                self.state_timer = 20
+                self.attack_cooldown = self.attack_cooldown_duration
+
+        elif self.state == self.STATE_TELEPORT:
+            self._do_teleport()
+
+        elif self.state == self.STATE_PHASE:
+            self._do_phase(player_rect)
+
+        # Update visual
+        self._update_visuals()
+
+    def _choose_next_action(self, player_rect: pygame.Rect) -> None:
+        """Choose next action based on distance to player."""
+        distance_x = abs(player_rect.centerx - self.rect.centerx)
+        distance_y = abs(player_rect.centery - self.rect.centery)
+        distance = math.sqrt(distance_x ** 2 + distance_y ** 2)
+
+        # Teleport if far away or randomly
+        if self.teleport_cooldown <= 0 and (distance > 250 or random.random() < 0.2):
+            self._start_teleport(player_rect)
+            return
+
+        # Phase attack if medium distance
+        if self.attack_cooldown <= 0 and 100 < distance < 200 and random.random() < 0.3:
+            self.state = self.STATE_PHASE
+            self.state_timer = self.phase_duration
+            return
+
+        # Slash attack if close
+        if self.attack_cooldown <= 0 and distance < 100:
+            self.state = self.STATE_SLASH
+            self.state_timer = 25
+            return
+
+        # Walk toward player
+        self.state = self.STATE_WALK
+        self.state_timer = 30 + random.randint(0, 20)
+
+    def _start_teleport(self, player_rect: pygame.Rect) -> None:
+        """Start teleport - fade out, move, fade in."""
+        self.state = self.STATE_TELEPORT
+        self.state_timer = 40  # Total teleport time
+
+        # Choose destination near player but not too close
+        offset_x = random.choice([-80, 80])
+        self.teleport_target_x = player_rect.centerx + offset_x
+        self.teleport_target_y = player_rect.centery
+
+        # Clamp to arena
+        self.teleport_target_x = max(self.arena_left,
+                                     min(self.teleport_target_x, self.arena_right - self.rect.width))
+        self.teleport_target_y = max(self.arena_top,
+                                     min(self.teleport_target_y, self.arena_bottom - self.rect.height))
+
+        self.teleport_cooldown = self.teleport_cooldown_duration
+
+    def _do_teleport(self) -> None:
+        """Execute teleport animation."""
+        # First half: fade out
+        if self.state_timer > 20:
+            self.alpha = max(0, self.alpha - 20)
+        # Middle: actually move
+        elif self.state_timer == 20:
+            self.rect.x = int(self.teleport_target_x)
+            self.rect.y = int(self.teleport_target_y)
+        # Second half: fade in
+        else:
+            self.alpha = min(255, self.alpha + 20)
+
+        if self.state_timer <= 0:
+            self.state = self.STATE_IDLE
+            self.state_timer = 15
+            self.alpha = 255
+
+    def _do_phase(self, player_rect: pygame.Rect) -> None:
+        """Phase through toward player (invulnerable dash)."""
+        # Move toward player
+        dx = player_rect.centerx - self.rect.centerx
+        dy = player_rect.centery - self.rect.centery
+        dist = math.sqrt(dx * dx + dy * dy)
+        if dist > 0:
+            self.rect.x += int((dx / dist) * 6)
+            self.rect.y += int((dy / dist) * 6)
+
+        # Flickering alpha during phase
+        self.alpha = 100 + int(50 * math.sin(self.state_timer * 0.5))
+
+        if self.state_timer <= 0:
+            self.state = self.STATE_IDLE
+            self.state_timer = 30
+            self.attack_cooldown = self.attack_cooldown_duration * 2
+            self.alpha = 255
+
+    def _do_walk(self, player_rect: pygame.Rect) -> None:
+        """Float toward player."""
+        # Horizontal movement
+        if self.facing_right:
+            self.rect.x += self.speed
+        else:
+            self.rect.x -= self.speed
+
+        # Slight vertical tracking
+        if player_rect.centery < self.rect.centery - 20:
+            self.rect.y -= 1
+        elif player_rect.centery > self.rect.centery + 20:
+            self.rect.y += 1
+
+        # Keep in arena bounds
+        self.rect.x = max(self.arena_left, min(self.rect.x, self.arena_right - self.rect.width))
+        self.rect.y = max(self.arena_top, min(self.rect.y, self.arena_bottom - self.rect.height))
+
+    def _update_visuals(self) -> None:
+        """Update the ghost's visual appearance."""
+        from game.settings import GHOST_CAPTAIN_HEIGHT, GHOST_CAPTAIN_WIDTH
+
+        # Recreate sprite with current alpha
+        self.image = self.base_image.copy()
+        self.image.set_alpha(self.alpha)
+
+        # Damage flash
+        if self.damage_flash > 0 and self.damage_flash % 2 == 0:
+            flash = pygame.Surface((GHOST_CAPTAIN_WIDTH, GHOST_CAPTAIN_HEIGHT), pygame.SRCALPHA)
+            flash.fill((255, 255, 255, 150))
+            self.image.blit(flash, (0, 0))
+
+    def get_attack_hitbox(self) -> pygame.Rect | None:
+        """Get attack hitbox for slash attack."""
+        if self.state == self.STATE_SLASH and 5 < self.state_timer < 20:
+            # Long spectral slash
+            if self.facing_right:
+                return pygame.Rect(self.rect.right, self.rect.top + 20, 60, 40)
+            else:
+                return pygame.Rect(self.rect.left - 60, self.rect.top + 20, 60, 40)
+
+        if self.state == self.STATE_PHASE:
+            # Body is dangerous during phase
+            return self.rect.inflate(-10, -10)
+
+        return None
+
+    def get_attack_damage(self) -> int:
+        """Get damage for current attack."""
+        if self.state == self.STATE_SLASH:
+            return 2
+        if self.state == self.STATE_PHASE:
+            return 1
+        return 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw the ghost captain with effects."""
+        if not self.active:
+            return
+
+        from game.settings import GHOST_CAPTAIN_HEIGHT, GHOST_CAPTAIN_WIDTH
+
+        # Apply floating offset
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1] + int(self.float_offset)
+
+        # Draw ghostly glow behind
+        if self.alpha > 100:
+            glow = pygame.Surface((GHOST_CAPTAIN_WIDTH + 20, GHOST_CAPTAIN_HEIGHT + 20), pygame.SRCALPHA)
+            glow_alpha = min(80, self.alpha // 3)
+            pygame.draw.ellipse(glow, (*self.GHOST_GLOW, glow_alpha),
+                              (0, 10, GHOST_CAPTAIN_WIDTH + 20, GHOST_CAPTAIN_HEIGHT))
+            surface.blit(glow, (draw_x - 10, draw_y - 10))
+
+        # Draw sprite (flip if facing left)
+        frame = self.image
+        if not self.facing_right:
+            frame = pygame.transform.flip(frame, True, False)
+        surface.blit(frame, (draw_x, draw_y))
+
+        # Draw slash effect
+        if self.state == self.STATE_SLASH and 5 < self.state_timer < 20:
+            slash_x = draw_x + (GHOST_CAPTAIN_WIDTH if self.facing_right else -50)
+            slash_y = draw_y + 25
+            # Ghostly slash arc
+            slash_surf = pygame.Surface((60, 40), pygame.SRCALPHA)
+            pygame.draw.arc(slash_surf, (*self.GHOST_GLOW, 200),
+                          (0, 0, 60, 40), 0.5, 2.5, 4)
+            if not self.facing_right:
+                slash_surf = pygame.transform.flip(slash_surf, True, False)
+            surface.blit(slash_surf, (slash_x, slash_y))
+
+        # Draw health bar
+        bar_width = 60
+        bar_height = 6
+        bar_x = draw_x + (GHOST_CAPTAIN_WIDTH - bar_width) // 2
+        bar_y = draw_y - 15
+
+        pygame.draw.rect(surface, (40, 40, 60), (bar_x, bar_y, bar_width, bar_height))
+        health_pct = self.health / self.max_health
+        pygame.draw.rect(surface, (100, 200, 150), (bar_x, bar_y, int(bar_width * health_pct), bar_height))
+        pygame.draw.rect(surface, (80, 80, 100), (bar_x, bar_y, bar_width, bar_height), 1)
+
+        # Draw phase effect (swirling ghosts)
+        if self.state == self.STATE_PHASE:
+            for i in range(3):
+                angle = (pygame.time.get_ticks() / 100 + i * 2.1) % (2 * math.pi)
+                ghost_x = draw_x + GHOST_CAPTAIN_WIDTH // 2 + int(25 * math.cos(angle))
+                ghost_y = draw_y + GHOST_CAPTAIN_HEIGHT // 2 + int(15 * math.sin(angle))
+                pygame.draw.circle(surface, (*self.GHOST_GLOW, 100), (ghost_x, ghost_y), 8)

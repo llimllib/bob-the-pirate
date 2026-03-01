@@ -176,8 +176,8 @@ class TitleScreen:
         # Wave animation for ocean
         self.wave_offset = 0
 
-        # Available levels
-        self.levels = [
+        # Available levels (always shown)
+        self.base_levels = [
             ("levels/level1.json", "Port Town", "Tutorial", "level1.ogg"),
             ("levels/level2.json", "HMS Revenge", "Ship Combat", "level2.ogg"),
             ("levels/level3.json", "Cliff Fortress", "Vertical Climb", "level3.ogg"),
@@ -185,6 +185,30 @@ class TitleScreen:
             ("levels/level5.json", "Governor's Mansion", "Challenge", "level5.ogg"),
             ("levels/boss_arena.json", "Admiral's Quarters", "Final Boss", "boss.ogg"),
         ]
+
+        # Secret levels (unlockable)
+        self.secret_levels = {
+            "secret_crypt": ("levels/secret_crypt.json", "The Creepy Crypt", "Secret", "boss.ogg"),
+        }
+
+        # Unlocked secrets
+        self.unlocked_secrets: set[str] = set()
+
+        # Combined levels list (rebuilt when secrets unlocked)
+        self.levels = list(self.base_levels)
+
+    def unlock_secret(self, secret_id: str) -> None:
+        """Unlock a secret level."""
+        if secret_id in self.secret_levels and secret_id not in self.unlocked_secrets:
+            self.unlocked_secrets.add(secret_id)
+            self._rebuild_levels()
+
+    def _rebuild_levels(self) -> None:
+        """Rebuild the levels list including unlocked secrets."""
+        self.levels = list(self.base_levels)
+        for secret_id in sorted(self.unlocked_secrets):
+            if secret_id in self.secret_levels:
+                self.levels.append(self.secret_levels[secret_id])
 
     def update(self) -> None:
         """Update animations."""

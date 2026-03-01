@@ -317,11 +317,12 @@ class HUD:
         health_ratio = boss.health / boss.max_health
         fill_width = int(bar_width * health_ratio)
 
-        # Color changes based on phase with gradient
-        if boss.phase == 3:
+        # Color changes based on phase with gradient (if boss has phases)
+        phase = getattr(boss, 'phase', 1)
+        if phase == 3:
             bar_color = (200, 50, 50)  # Red - dangerous!
             bar_highlight = (255, 100, 100)
-        elif boss.phase == 2:
+        elif phase == 2:
             bar_color = (200, 150, 50)  # Orange - getting aggressive
             bar_highlight = (255, 200, 100)
         else:

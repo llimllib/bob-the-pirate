@@ -178,6 +178,33 @@ class LootChest(Collectible):
         return {"type": "powerup", "powerup": self.powerup_type}
 
 
+class SecretDoor(Collectible):
+    """Hidden door that unlocks a secret level."""
+
+    def __init__(self, x: int, y: int, unlocks_level: str = "secret_crypt"):
+        super().__init__(x, y, 32, 48)
+        self.unlocks_level = unlocks_level
+        # Create a spooky door appearance
+        self.image = pygame.Surface((32, 48), pygame.SRCALPHA)
+        # Dark purple door with ghostly glow
+        pygame.draw.rect(self.image, (60, 40, 80), (2, 2, 28, 44))
+        pygame.draw.rect(self.image, (100, 80, 120), (0, 0, 32, 48), 2)
+        # Skull symbol
+        pygame.draw.circle(self.image, (150, 150, 160), (16, 18), 8)
+        pygame.draw.circle(self.image, (40, 30, 50), (12, 16), 3)
+        pygame.draw.circle(self.image, (40, 30, 50), (20, 16), 3)
+        pygame.draw.rect(self.image, (150, 150, 160), (12, 26, 8, 6))
+        self.rect = self.image.get_rect(topleft=(x, y))
+
+    def collect(self, player) -> dict:
+        """Unlock the secret level."""
+        super().collect(player)
+        return {
+            "type": "secret_door",
+            "unlocks": self.unlocks_level
+        }
+
+
 class ExitDoor(pygame.sprite.Sprite):
     """Level exit - unlocked when all treasure is collected."""
 

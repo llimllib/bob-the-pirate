@@ -102,6 +102,15 @@ ADMIRAL_CHARGE_SPEED = 8
 ADMIRAL_SUMMON_COOLDOWN = 300  # 5 seconds
 ADMIRAL_SWORD_FRAME_WIDTH = 70  # Width of mid-swing attack frame
 
+# Ghost Captain settings (secret boss)
+GHOST_CAPTAIN_WIDTH = 48
+GHOST_CAPTAIN_HEIGHT = 72
+GHOST_CAPTAIN_HEALTH = 18  # Very tough - hardest boss
+GHOST_CAPTAIN_SPEED = 3
+GHOST_CAPTAIN_ATTACK_COOLDOWN = 60  # 1 second
+GHOST_CAPTAIN_TELEPORT_COOLDOWN = 120  # 2 seconds
+GHOST_CAPTAIN_PHASE_DURATION = 45  # Invincible phase duration
+
 # Parrot settings
 PARROT_WIDTH = 16
 PARROT_HEIGHT = 12

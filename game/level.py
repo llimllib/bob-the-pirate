@@ -182,9 +182,10 @@ class Level:
             LootChest,
             PirateFlag,
             RumBottle,
+            SecretDoor,
             TreasureChest,
         )
-        from game.enemies import Admiral, Bosun, Cannon, Musketeer, Officer, Sailor
+        from game.enemies import Admiral, Bosun, Cannon, GhostCaptain, Musketeer, Officer, Sailor
 
         with open(filepath, 'r') as f:
             data = json.load(f)
@@ -266,6 +267,15 @@ class Level:
                 # Track as miniboss if level requires defeating it
                 if self.requires_miniboss_defeat:
                     self.miniboss = enemy
+            elif enemy_type == "ghost_captain":
+                enemy = GhostCaptain(x, y)
+                # Set arena bounds
+                arena_left = enemy_data.get("arena_left", x - 300)
+                arena_right = enemy_data.get("arena_right", x + 300)
+                arena_top = enemy_data.get("arena_top", 0)
+                arena_bottom = enemy_data.get("arena_bottom", 1200)
+                enemy.set_arena_bounds(arena_left, arena_right, arena_top, arena_bottom)
+                self.boss = enemy
             else:
                 continue
 
@@ -289,6 +299,9 @@ class Level:
             elif item_type == "loot":
                 powerup = item_data.get("powerup", "parrot")
                 item = LootChest(x, y, powerup)
+            elif item_type == "secret_door":
+                unlocks = item_data.get("unlocks", "secret_crypt")
+                item = SecretDoor(x, y, unlocks)
             else:
                 continue
 
