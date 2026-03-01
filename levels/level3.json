@@ -1211,6 +1211,76 @@
       "x": 84,
       "y": 9,
       "type": "platform"
+    },
+    {
+      "x": 107,
+      "y": 24,
+      "type": "platform"
+    },
+    {
+      "x": 108,
+      "y": 24,
+      "type": "platform"
+    },
+    {
+      "x": 109,
+      "y": 24,
+      "type": "platform"
+    },
+    {
+      "x": 110,
+      "y": 24,
+      "type": "platform"
+    },
+    {
+      "x": 111,
+      "y": 24,
+      "type": "platform"
+    },
+    {
+      "x": 87,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 88,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 89,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 90,
+      "y": 13,
+      "type": "platform"
+    },
+    {
+      "x": 95,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 96,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 97,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 98,
+      "y": 14,
+      "type": "platform"
+    },
+    {
+      "x": 99,
+      "y": 14,
+      "type": "platform"
     }
   ],
   "enemies": [
@@ -1474,6 +1544,13 @@
       "x": 3500,
       "y": 750,
       "unlocks": "secret_crypt"
+    },
+    {
+      "type": "spring",
+      "x": 3440,
+      "y": 752,
+      "bounce_power": -28,
+      "horizontal_boost": -18
     }
   ],
   "exit": {

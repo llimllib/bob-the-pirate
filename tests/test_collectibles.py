@@ -231,3 +231,65 @@ class TestExitDoor:
         # Should still be correct size
         assert door.image.get_width() == 32
         assert door.image.get_height() == 64
+
+
+class TestSpring:
+    """Tests for Spring bouncer."""
+
+    def test_spring_initial_state(self):
+        """Test Spring starts uncompressed."""
+        from game.collectibles import Spring
+        spring = Spring(100, 100)
+        assert spring.compressed is False
+        assert spring.compress_timer == 0
+
+    def test_spring_bounce_applies_velocity(self):
+        """Test Spring bounce applies velocity to player."""
+        from game.collectibles import Spring
+        from game.player import Player
+
+        spring = Spring(100, 100, bounce_power=-20, horizontal_boost=-10)
+        player = Player(100, 80)
+        player.velocity_y = 5  # Falling
+        player.velocity_x = 0
+
+        result = spring.bounce(player)
+
+        assert result is True
+        assert player.velocity_y == -20
+        assert player.velocity_x == -10
+        assert spring.compressed is True
+
+    def test_spring_no_double_bounce(self):
+        """Test Spring doesn't bounce twice in a row."""
+        from game.collectibles import Spring
+        from game.player import Player
+
+        spring = Spring(100, 100)
+        player = Player(100, 80)
+
+        # First bounce
+        spring.bounce(player)
+        assert spring.compress_timer > 0
+
+        # Second bounce should fail
+        result = spring.bounce(player)
+        assert result is False
+
+    def test_spring_decompresses_after_timer(self):
+        """Test Spring decompresses after timer expires."""
+        from game.collectibles import Spring
+        from game.player import Player
+
+        spring = Spring(100, 100)
+        player = Player(100, 80)
+        spring.bounce(player)
+
+        assert spring.compressed is True
+
+        # Update until timer expires
+        for _ in range(20):
+            spring.update()
+
+        assert spring.compressed is False
+        assert spring.compress_timer == 0

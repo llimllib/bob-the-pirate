@@ -9,6 +9,9 @@ from game.enemies import (
     Bosun,
     Cannon,
     Cannonball,
+    GhostMusketeer,
+    GhostOfficer,
+    GhostSailor,
     MusketBall,
     Musketeer,
     Officer,
@@ -746,3 +749,75 @@ class TestEnemyGravity:
 
         # Cannon should NOT have fallen
         assert cannon.rect.y == initial_y
+
+
+class TestGhostEnemies:
+    """Tests for ghost enemy variants."""
+
+    def test_ghost_sailor_initial_state(self):
+        """Test GhostSailor inherits from Sailor and has ghost effects."""
+        ghost = GhostSailor(100, 100, patrol_distance=50)
+
+        assert ghost.health == SAILOR_HEALTH
+        assert ghost.patrol_distance == 50
+        assert hasattr(ghost, 'float_timer')
+        assert ghost.active
+
+    def test_ghost_sailor_has_animations(self):
+        """Test GhostSailor has ghost-tinted animations."""
+        ghost = GhostSailor(100, 100)
+
+        assert "walk" in ghost.sprite.animations
+        assert "hurt" in ghost.sprite.animations
+        # Frames should exist (ghost effect applied)
+        assert len(ghost.sprite.animations["walk"].frames) > 0
+
+    def test_ghost_sailor_floats(self):
+        """Test GhostSailor has floating animation timer."""
+        ghost = GhostSailor(100, 100)
+        initial_timer = ghost.float_timer
+
+        ghost.update(None)
+
+        assert ghost.float_timer == initial_timer + 1
+
+    def test_ghost_musketeer_initial_state(self, projectile_group):
+        """Test GhostMusketeer inherits from Musketeer."""
+        ghost = GhostMusketeer(100, 100, projectile_group)
+
+        assert ghost.health == MUSKETEER_HEALTH
+        assert hasattr(ghost, 'float_timer')
+        assert ghost.active
+
+    def test_ghost_musketeer_has_animations(self, projectile_group):
+        """Test GhostMusketeer has ghost-tinted animations."""
+        ghost = GhostMusketeer(100, 100, projectile_group)
+
+        assert "idle" in ghost.sprite.animations
+        assert "shoot" in ghost.sprite.animations
+
+    def test_ghost_officer_initial_state(self):
+        """Test GhostOfficer inherits from Officer."""
+        ghost = GhostOfficer(100, 100)
+
+        assert ghost.health == OFFICER_HEALTH
+        assert hasattr(ghost, 'float_timer')
+        assert ghost.active
+
+    def test_ghost_officer_has_animations(self):
+        """Test GhostOfficer has ghost-tinted animations."""
+        ghost = GhostOfficer(100, 100)
+
+        assert "walk" in ghost.sprite.animations
+        assert "attack" in ghost.sprite.animations
+
+    def test_ghost_officer_attacks_player(self):
+        """Test GhostOfficer can attack like regular Officer."""
+        ghost = GhostOfficer(100, 100)
+
+        # Put player in attack range
+        player_rect = pygame.Rect(120, 100, 32, 48)
+        ghost.update(player_rect)
+
+        # Should start attacking when close
+        assert ghost.attacking or ghost.attack_cooldown > 0 or ghost.velocity_x != 0

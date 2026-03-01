@@ -93,6 +93,12 @@ class Game:
         # Unlocked secret levels (in-memory, resets on game close)
         self.unlocked_secrets: set[str] = set()
 
+        # Cheat code buffer (for typing secret codes)
+        self.cheat_buffer = ""
+        self.cheat_codes = {
+            "billajwin": self._cheat_unlock_crypt,
+        }
+
         # Track player states for sound triggers
         self.was_on_ground = True
         self.was_jumping = False
@@ -105,6 +111,26 @@ class Game:
 
         # Play menu music
         play_music("menu.ogg")
+
+    def _cheat_unlock_crypt(self) -> None:
+        """Cheat code: unlock the secret crypt level."""
+        self.unlocked_secrets.add("secret_crypt")
+        self.title_screen.unlock_secret("secret_crypt")
+        play_sound("door_unlock")
+
+    def _check_cheat_code(self, char: str) -> None:
+        """Check if a typed character completes a cheat code."""
+        self.cheat_buffer += char.lower()
+        # Keep buffer at reasonable length
+        if len(self.cheat_buffer) > 20:
+            self.cheat_buffer = self.cheat_buffer[-20:]
+
+        # Check for any matching cheat code
+        for code, action in self.cheat_codes.items():
+            if self.cheat_buffer.endswith(code):
+                action()
+                self.cheat_buffer = ""
+                break
 
     def _try_damage_player(self, amount: int = 1) -> bool:
         """
@@ -189,6 +215,11 @@ class Game:
                 self.running = False
 
             elif event.type == pygame.KEYDOWN:
+                # Check for cheat codes (process typed letters)
+                unicode_char = getattr(event, 'unicode', '')
+                if unicode_char and unicode_char.isalpha():
+                    self._check_cheat_code(unicode_char)
+
                 # Don't process input during transitions
                 if self.transition.active:
                     continue
@@ -494,6 +525,14 @@ class Game:
                 self.title_screen.unlock_secret(unlocks)
                 play_sound("door_unlock")
 
+        # Check springs
+        for spring in self.level.springs:
+            if self.player.rect.colliderect(spring.rect):
+                # Only bounce if player is falling onto the spring
+                if self.player.velocity_y >= 0:
+                    if spring.bounce(self.player):
+                        play_sound("jump")
+
         # Update parrot companion
         if self.parrot:
             if self.player.has_parrot:
@@ -591,8 +630,10 @@ class Game:
             if boss.active:
                 attack_box = boss.get_attack_hitbox()
                 if attack_box and self.player.rect.colliderect(attack_box):
-                    # Boss charge does 2 damage
-                    damage = 2 if boss.state == boss.STATE_CHARGE else 1
+                    # Boss charge does 2 damage (check if boss has STATE_CHARGE)
+                    damage = 1
+                    if hasattr(boss, 'STATE_CHARGE') and boss.state == boss.STATE_CHARGE:
+                        damage = 2
                     self._try_damage_player(damage)
 
                 # Handle boss summon

@@ -77,6 +77,44 @@ def get_projectile_sheet() -> SpriteSheet | None:
     return _projectile_sheet
 
 
+def apply_ghost_effect(surface: pygame.Surface) -> pygame.Surface:
+    """
+    Apply a ghostly/spectral effect to a sprite surface.
+
+    - Tints the sprite with a pale blue-green color
+    - Makes it semi-transparent
+    - Adds tattered/wispy edges
+    """
+    width, height = surface.get_size()
+    ghost_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+
+    # Copy and tint the original surface
+    for x in range(width):
+        for y in range(height):
+            r, g, b, a = surface.get_at((x, y))
+            if a > 0:
+                # Spectral blue-green tint (clamped to 0-255)
+                ghost_r = min(255, int(r * 0.3 + 80))
+                ghost_g = min(255, int(g * 0.4 + 120))
+                ghost_b = min(255, int(b * 0.5 + 140))
+                # Reduce alpha for transparency
+                ghost_a = int(a * 0.7)
+
+                # Add tattered edges - reduce alpha near edges randomly
+                edge_dist = min(x, width - 1 - x, y, height - 1 - y)
+                if edge_dist < 3 and random.random() < 0.4:
+                    ghost_a = int(ghost_a * 0.3)
+
+                ghost_surface.set_at((x, y), (ghost_r, ghost_g, ghost_b, ghost_a))
+
+    return ghost_surface
+
+
+def create_ghost_animation_frames(frames: list[pygame.Surface]) -> list[pygame.Surface]:
+    """Apply ghost effect to a list of animation frames."""
+    return [apply_ghost_effect(frame) for frame in frames]
+
+
 class Enemy(pygame.sprite.Sprite):
     """Base class for all enemies."""
 
@@ -573,6 +611,149 @@ class Cannon(Enemy):
         surface.blit(frame, (draw_x, draw_y))
 
 
+# =============================================================================
+# GHOST ENEMY VARIANTS
+# =============================================================================
+# These are spectral versions of regular enemies for the secret crypt level.
+# They have the same behavior but with ghostly, tattered appearances.
+
+
+class GhostSailor(Sailor):
+    """Ghostly version of the Sailor - semi-transparent with spectral glow."""
+
+    def __init__(self, x: int, y: int, patrol_distance: int = 100):
+        super().__init__(x, y, patrol_distance)
+        # Apply ghost effect to animations
+        self._apply_ghost_effect()
+        # Floating offset for bobbing effect
+        self.float_timer = random.randint(0, 60)
+
+    def _apply_ghost_effect(self) -> None:
+        """Convert all animation frames to ghostly versions."""
+        for anim_name in list(self.sprite.animations.keys()):
+            anim = self.sprite.animations[anim_name]
+            ghost_frames = create_ghost_animation_frames(anim.frames)
+            self.sprite.animations[anim_name] = Animation(
+                ghost_frames, anim.frame_duration, anim.loop
+            )
+        # Update the current frame
+        self.image = self.sprite.get_frame()
+
+    def update(self, player_rect: pygame.Rect = None) -> None:
+        """Update with floating effect."""
+        super().update(player_rect)
+        self.float_timer += 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw with floating bob effect."""
+        if not self.active:
+            return
+
+        # Calculate floating offset
+        float_offset = int(math.sin(self.float_timer * 0.1) * 3)
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1] + float_offset
+
+        surface.blit(self.image, (draw_x, draw_y))
+
+
+class GhostMusketeer(Musketeer):
+    """Ghostly version of the Musketeer - fires spectral shots."""
+
+    def __init__(self, x: int, y: int, projectile_group: pygame.sprite.Group):
+        super().__init__(x, y, projectile_group)
+        # Apply ghost effect to animations
+        self._apply_ghost_effect()
+        # Floating offset for bobbing effect
+        self.float_timer = random.randint(0, 60)
+
+    def _apply_ghost_effect(self) -> None:
+        """Convert all animation frames to ghostly versions."""
+        for anim_name in list(self.sprite.animations.keys()):
+            anim = self.sprite.animations[anim_name]
+            ghost_frames = create_ghost_animation_frames(anim.frames)
+            self.sprite.animations[anim_name] = Animation(
+                ghost_frames, anim.frame_duration, anim.loop
+            )
+        # Update the current frame
+        self.image = self.sprite.get_frame()
+
+    def update(self, player_rect: pygame.Rect = None) -> None:
+        """Update with floating effect."""
+        super().update(player_rect)
+        self.float_timer += 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw with floating bob effect and handle wider shooting sprite."""
+        if not self.active:
+            return
+
+        # Calculate floating offset
+        float_offset = int(math.sin(self.float_timer * 0.1) * 3)
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1] + float_offset
+
+        frame = self.sprite.get_frame()
+
+        # Handle wider shooting sprite offset when facing left
+        if self.shooting and frame.get_width() > MUSKETEER_WIDTH:
+            extra_width = frame.get_width() - MUSKETEER_WIDTH
+            if not self.facing_right:
+                draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
+
+class GhostOfficer(Officer):
+    """Ghostly version of the Officer - spectral sword attacks."""
+
+    def __init__(self, x: int, y: int):
+        super().__init__(x, y)
+        # Apply ghost effect to animations
+        self._apply_ghost_effect()
+        # Floating offset for bobbing effect
+        self.float_timer = random.randint(0, 60)
+
+    def _apply_ghost_effect(self) -> None:
+        """Convert all animation frames to ghostly versions."""
+        for anim_name in list(self.sprite.animations.keys()):
+            anim = self.sprite.animations[anim_name]
+            ghost_frames = create_ghost_animation_frames(anim.frames)
+            self.sprite.animations[anim_name] = Animation(
+                ghost_frames, anim.frame_duration, anim.loop
+            )
+        # Update the current frame
+        self.image = self.sprite.get_frame()
+
+    def update(self, player_rect: pygame.Rect = None) -> None:
+        """Update with floating effect."""
+        super().update(player_rect)
+        self.float_timer += 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw with floating bob effect and handle wider attack sprite."""
+        if not self.active:
+            return
+
+        # Calculate floating offset
+        float_offset = int(math.sin(self.float_timer * 0.1) * 3)
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1] + float_offset
+
+        frame = self.sprite.get_frame()
+
+        # Handle wider attack sprite offset when facing left
+        if self.attacking and frame.get_width() > OFFICER_WIDTH:
+            extra_width = frame.get_width() - OFFICER_WIDTH
+            if not self.facing_right:
+                draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
+
 class Bosun(Enemy):
     """
     Miniboss enemy - The ship's Bosun, a tough disciplinarian.
@@ -1002,6 +1183,9 @@ class Admiral(Enemy):
         self._load_animations()
         self.sprite.play("idle")
 
+        # Boss display name
+        self.name = "VICE-ADMIRAL GARP"
+
         # AI state
         self.state = self.STATE_IDLE
         self.state_timer = 60  # Start with brief idle
@@ -1407,6 +1591,9 @@ class GhostCaptain(Enemy):
         self.teleport_cooldown_duration = GHOST_CAPTAIN_TELEPORT_COOLDOWN
         self.phase_duration = GHOST_CAPTAIN_PHASE_DURATION
 
+        # Boss display name
+        self.name = "LORD TIM, GHOST CAPTAIN"
+
         # AI state
         self.state = self.STATE_IDLE
         self.state_timer = 60
@@ -1434,43 +1621,176 @@ class GhostCaptain(Enemy):
         self._create_ghost_sprite()
 
     def _create_ghost_sprite(self) -> None:
-        """Create the ghostly captain sprite."""
+        """Create the detailed ghostly captain sprite."""
         from game.settings import GHOST_CAPTAIN_HEIGHT, GHOST_CAPTAIN_WIDTH
 
         w, h = GHOST_CAPTAIN_WIDTH, GHOST_CAPTAIN_HEIGHT
         self.base_image = pygame.Surface((w, h), pygame.SRCALPHA)
 
-        # Ghostly body (translucent)
-        body_color = (*self.GHOST_COLOR, 180)
-        pygame.draw.ellipse(self.base_image, body_color, (4, 20, w - 8, h - 20))
+        # Color palette
+        body_color = (*self.GHOST_COLOR, 160)  # Main spectral body
+        body_highlight = (*self.GHOST_GLOW, 140)  # Lighter areas
+        body_shadow = (70, 110, 140, 180)  # Darker areas
+        coat_color = (60, 100, 130, 180)  # Coat is slightly darker
+        coat_trim = (120, 170, 200, 200)  # Gold trim, but ghostly
+        bone_color = (200, 210, 220, 230)  # Skeletal hand
+        bone_shadow = (150, 160, 170, 200)
+        eye_glow = (255, 80, 80, 255)  # Glowing red eyes
+        eye_inner = (255, 200, 200, 255)  # Eye center
+        chain_color = (140, 160, 180, 200)  # Ghostly chains
+        chain_highlight = (180, 200, 220, 220)
+        hat_color = (50, 70, 90, 220)  # Dark spectral hat
+        hat_highlight = (80, 100, 120, 200)
 
-        # Tattered coat tails (wavy bottom)
-        for i in range(5):
-            tail_x = 8 + i * 8
-            tail_h = 10 + (i % 2) * 5
-            pygame.draw.rect(self.base_image, body_color,
-                           (tail_x, h - tail_h - 5, 6, tail_h))
+        # === TATTERED COAT BOTTOM (wispy, fading) ===
+        for i in range(7):
+            tail_x = 6 + i * 6
+            tail_h = 18 + (i % 3) * 4 - abs(i - 3) * 2
+            # Gradient fade at bottom
+            for y_off in range(tail_h):
+                alpha = int(160 * (1 - y_off / tail_h))
+                fade_color = (self.GHOST_COLOR[0], self.GHOST_COLOR[1], self.GHOST_COLOR[2], alpha)
+                pygame.draw.line(self.base_image, fade_color,
+                               (tail_x, h - tail_h + y_off - 2),
+                               (tail_x + 4, h - tail_h + y_off - 2))
 
-        # Head
-        head_color = (*self.GHOST_GLOW, 200)
-        pygame.draw.circle(self.base_image, head_color, (w // 2, 16), 12)
+        # === MAIN BODY (coat/torso) ===
+        # Body shadow layer
+        pygame.draw.ellipse(self.base_image, body_shadow, (6, 24, w - 12, h - 32))
+        # Main body
+        pygame.draw.ellipse(self.base_image, body_color, (8, 22, w - 16, h - 34))
+        # Body highlight (left side, light source)
+        pygame.draw.ellipse(self.base_image, body_highlight, (10, 24, 16, h - 40))
 
-        # Glowing eyes
-        eye_color = (255, 100, 100, 255)
-        pygame.draw.circle(self.base_image, eye_color, (w // 2 - 5, 14), 3)
-        pygame.draw.circle(self.base_image, eye_color, (w // 2 + 5, 14), 3)
+        # === CAPTAIN'S COAT DETAILS ===
+        # Coat lapels (V-shape at chest)
+        pygame.draw.polygon(self.base_image, coat_color, [
+            (w // 2, 26), (w // 2 - 10, 38), (w // 2, 50)
+        ])
+        pygame.draw.polygon(self.base_image, coat_color, [
+            (w // 2, 26), (w // 2 + 10, 38), (w // 2, 50)
+        ])
+        # Coat trim/buttons
+        for i in range(3):
+            btn_y = 32 + i * 8
+            pygame.draw.circle(self.base_image, coat_trim, (w // 2, btn_y), 2)
 
-        # Pirate hat
-        hat_color = (40, 40, 60, 220)
-        pygame.draw.rect(self.base_image, hat_color, (w // 2 - 14, 2, 28, 8))
-        pygame.draw.rect(self.base_image, hat_color, (w // 2 - 8, 0, 16, 10))
+        # Epaulettes (shoulder decorations)
+        pygame.draw.ellipse(self.base_image, coat_trim, (6, 26, 10, 6))
+        pygame.draw.ellipse(self.base_image, coat_trim, (w - 16, 26, 10, 6))
+        # Fringe on epaulettes
+        for i in range(3):
+            pygame.draw.line(self.base_image, coat_trim, (8 + i * 3, 32), (8 + i * 3, 36))
+            pygame.draw.line(self.base_image, coat_trim, (w - 14 + i * 3, 32), (w - 14 + i * 3, 36))
 
-        # Ghostly sword (always visible)
-        sword_color = (*self.GHOST_GLOW, 200)
-        pygame.draw.rect(self.base_image, sword_color, (w - 8, 30, 6, 30))
-        pygame.draw.rect(self.base_image, (200, 220, 255, 220), (w - 10, 28, 10, 4))
+        # === GHOSTLY CHAINS (wrapped around torso) ===
+        # Chain links across body
+        chain_y_positions = [38, 48, 58]
+        for cy in chain_y_positions:
+            for i in range(5):
+                cx = 12 + i * 7
+                # Chain link (small oval)
+                pygame.draw.ellipse(self.base_image, chain_color, (cx, cy, 6, 4))
+                pygame.draw.ellipse(self.base_image, chain_highlight, (cx + 1, cy, 3, 2))
+        # Dangling chain on left side
+        for i in range(4):
+            dangle_y = 58 + i * 6
+            pygame.draw.ellipse(self.base_image, chain_color, (4, dangle_y, 5, 4))
+            pygame.draw.ellipse(self.base_image, chain_highlight, (5, dangle_y, 2, 2))
+
+        # === HEAD ===
+        # Head glow (behind head)
+        pygame.draw.circle(self.base_image, (self.GHOST_GLOW[0], self.GHOST_GLOW[1], self.GHOST_GLOW[2], 60),
+                          (w // 2, 14), 14)
+        # Main head shape
+        pygame.draw.ellipse(self.base_image, body_color, (w // 2 - 10, 6, 20, 22))
+        # Face highlight
+        pygame.draw.ellipse(self.base_image, body_highlight, (w // 2 - 8, 8, 10, 14))
+
+        # Hollow cheeks (subtle shadow)
+        pygame.draw.ellipse(self.base_image, body_shadow, (w // 2 - 7, 14, 4, 6))
+        pygame.draw.ellipse(self.base_image, body_shadow, (w // 2 + 3, 14, 4, 6))
+
+        # === GLOWING RED EYES ===
+        # Eye glow (larger, behind)
+        pygame.draw.circle(self.base_image, (255, 100, 100, 100), (w // 2 - 5, 13), 5)
+        pygame.draw.circle(self.base_image, (255, 100, 100, 100), (w // 2 + 5, 13), 5)
+        # Main eye
+        pygame.draw.circle(self.base_image, eye_glow, (w // 2 - 5, 13), 3)
+        pygame.draw.circle(self.base_image, eye_glow, (w // 2 + 5, 13), 3)
+        # Eye bright center
+        pygame.draw.circle(self.base_image, eye_inner, (w // 2 - 5, 12), 1)
+        pygame.draw.circle(self.base_image, eye_inner, (w // 2 + 5, 12), 1)
+
+        # Spectral mouth (thin grimace)
+        pygame.draw.line(self.base_image, body_shadow, (w // 2 - 4, 20), (w // 2 + 4, 20), 1)
+
+        # === TRICORN HAT ===
+        # Hat base (wide brim folded up on 3 sides)
+        # Back of hat
+        pygame.draw.ellipse(self.base_image, hat_color, (w // 2 - 16, 0, 32, 12))
+        # Main hat body
+        pygame.draw.polygon(self.base_image, hat_color, [
+            (w // 2 - 14, 6), (w // 2 + 14, 6),  # Base
+            (w // 2 + 10, 0), (w // 2 - 10, 0)   # Top
+        ])
+        # Tricorn points (3 corners folded up)
+        # Left point
+        pygame.draw.polygon(self.base_image, hat_color, [
+            (w // 2 - 16, 6), (w // 2 - 20, 2), (w // 2 - 12, 4)
+        ])
+        # Right point
+        pygame.draw.polygon(self.base_image, hat_color, [
+            (w // 2 + 16, 6), (w // 2 + 20, 2), (w // 2 + 12, 4)
+        ])
+        # Hat band
+        pygame.draw.line(self.base_image, coat_trim, (w // 2 - 12, 6), (w // 2 + 12, 6), 2)
+        # Hat highlight
+        pygame.draw.line(self.base_image, hat_highlight, (w // 2 - 8, 2), (w // 2 + 8, 2), 1)
+
+        # Small skull emblem on hat
+        pygame.draw.circle(self.base_image, bone_color, (w // 2, 4), 3)
+        pygame.draw.circle(self.base_image, body_shadow, (w // 2 - 1, 4), 1)
+        pygame.draw.circle(self.base_image, body_shadow, (w // 2 + 1, 4), 1)
+
+        # === ARMS ===
+        # Left arm (normal ghostly arm holding chains)
+        pygame.draw.ellipse(self.base_image, body_color, (2, 30, 10, 24))
+        pygame.draw.ellipse(self.base_image, body_highlight, (4, 32, 6, 12))
+
+        # Right arm (SKELETAL HAND holding sword)
+        pygame.draw.ellipse(self.base_image, body_color, (w - 12, 30, 10, 20))
+        # Skeletal hand
+        pygame.draw.ellipse(self.base_image, bone_color, (w - 10, 48, 8, 6))  # Palm
+        # Bony fingers
+        for i in range(4):
+            fx = w - 10 + i * 2
+            pygame.draw.line(self.base_image, bone_color, (fx, 52), (fx, 58), 1)
+            pygame.draw.circle(self.base_image, bone_shadow, (fx, 58), 1)  # Knuckle
+        # Thumb
+        pygame.draw.line(self.base_image, bone_color, (w - 11, 50), (w - 13, 54), 1)
+
+        # === GHOSTLY CUTLASS (held in skeletal hand) ===
+        sword_glow = (*self.GHOST_GLOW, 180)
+        sword_bright = (220, 240, 255, 220)
+        # Blade
+        pygame.draw.polygon(self.base_image, sword_glow, [
+            (w - 4, 52), (w + 4, 52),  # Base of blade
+            (w + 6, 38), (w - 2, 38)   # Tip area
+        ])
+        # Blade edge highlight
+        pygame.draw.line(self.base_image, sword_bright, (w + 4, 52), (w + 6, 38), 1)
+        # Curved tip (cutlass style)
+        pygame.draw.arc(self.base_image, sword_glow, (w - 4, 32, 14, 12), 3.14, 4.71, 2)
+        # Crossguard
+        pygame.draw.rect(self.base_image, coat_trim, (w - 8, 52, 14, 3))
+        # Handle
+        pygame.draw.rect(self.base_image, hat_color, (w - 4, 55, 6, 8))
 
         self.image = self.base_image.copy()
+
+        # Store positions for chain animation
+        self.chain_offset = 0
 
     def set_arena_bounds(self, left: int, right: int, top: int = 0, bottom: int = 1200) -> None:
         """Set the arena boundaries for the ghost captain."""
@@ -1702,6 +2022,26 @@ class GhostCaptain(Enemy):
         draw_x = self.rect.x - camera_offset[0]
         draw_y = self.rect.y - camera_offset[1] + int(self.float_offset)
 
+        # Draw phase afterimages (trailing ghost images during phase)
+        if self.state == self.STATE_PHASE:
+            frame = self.image
+            if not self.facing_right:
+                frame = pygame.transform.flip(frame, True, False)
+
+            # Calculate movement direction for afterimage placement
+            dir_x = 1 if self.facing_right else -1
+
+            # Draw 3 afterimages behind the ghost, fading out
+            for i in range(3, 0, -1):
+                afterimage = frame.copy()
+                # Each afterimage is more transparent and further back
+                after_alpha = 40 + i * 15  # 55, 70, 85
+                afterimage.set_alpha(after_alpha)
+                # Position afterimages behind movement direction
+                offset_x = -dir_x * i * 12
+                offset_y = i * 2  # Slight vertical offset for wispy effect
+                surface.blit(afterimage, (draw_x + offset_x, draw_y + offset_y))
+
         # Draw ghostly glow behind
         if self.alpha > 100:
             glow = pygame.Surface((GHOST_CAPTAIN_WIDTH + 20, GHOST_CAPTAIN_HEIGHT + 20), pygame.SRCALPHA)
@@ -1716,17 +2056,40 @@ class GhostCaptain(Enemy):
             frame = pygame.transform.flip(frame, True, False)
         surface.blit(frame, (draw_x, draw_y))
 
+        # Draw animated chains (swaying slightly)
+        chain_sway = int(math.sin(pygame.time.get_ticks() * 0.008) * 3)
+        chain_color = (140, 160, 180, 150)
+        # Dangling chain from left side
+        for i in range(5):
+            chain_x = draw_x + 4 + chain_sway + (i % 2)
+            chain_y = draw_y + 62 + i * 5
+            pygame.draw.ellipse(surface, chain_color, (chain_x, chain_y, 5, 4))
+
         # Draw slash effect
         if self.state == self.STATE_SLASH and 5 < self.state_timer < 20:
             slash_x = draw_x + (GHOST_CAPTAIN_WIDTH if self.facing_right else -50)
             slash_y = draw_y + 25
-            # Ghostly slash arc
-            slash_surf = pygame.Surface((60, 40), pygame.SRCALPHA)
-            pygame.draw.arc(slash_surf, (*self.GHOST_GLOW, 200),
-                          (0, 0, 60, 40), 0.5, 2.5, 4)
+            # Ghostly slash arc - multiple layers for glow effect
+            slash_surf = pygame.Surface((70, 50), pygame.SRCALPHA)
+            # Outer glow
+            pygame.draw.arc(slash_surf, (*self.GHOST_GLOW, 80), (0, 0, 70, 50), 0.3, 2.7, 8)
+            # Middle
+            pygame.draw.arc(slash_surf, (*self.GHOST_GLOW, 150), (5, 5, 60, 40), 0.4, 2.6, 5)
+            # Inner bright
+            pygame.draw.arc(slash_surf, (220, 240, 255, 220), (10, 10, 50, 30), 0.5, 2.5, 3)
             if not self.facing_right:
                 slash_surf = pygame.transform.flip(slash_surf, True, False)
             surface.blit(slash_surf, (slash_x, slash_y))
+
+        # Draw eye glow effect (pulsing)
+        eye_pulse = int(abs(math.sin(pygame.time.get_ticks() * 0.01)) * 30)
+        eye_glow_surf = pygame.Surface((20, 10), pygame.SRCALPHA)
+        pygame.draw.circle(eye_glow_surf, (255, 80, 80, 40 + eye_pulse), (5, 5), 6)
+        pygame.draw.circle(eye_glow_surf, (255, 80, 80, 40 + eye_pulse), (15, 5), 6)
+        if not self.facing_right:
+            eye_glow_surf = pygame.transform.flip(eye_glow_surf, True, False)
+        eye_x = draw_x + (GHOST_CAPTAIN_WIDTH // 2 - 10 if self.facing_right else GHOST_CAPTAIN_WIDTH // 2 - 10)
+        surface.blit(eye_glow_surf, (eye_x, draw_y + 8))
 
         # Draw health bar
         bar_width = 60
@@ -1738,11 +2101,3 @@ class GhostCaptain(Enemy):
         health_pct = self.health / self.max_health
         pygame.draw.rect(surface, (100, 200, 150), (bar_x, bar_y, int(bar_width * health_pct), bar_height))
         pygame.draw.rect(surface, (80, 80, 100), (bar_x, bar_y, bar_width, bar_height), 1)
-
-        # Draw phase effect (swirling ghosts)
-        if self.state == self.STATE_PHASE:
-            for i in range(3):
-                angle = (pygame.time.get_ticks() / 100 + i * 2.1) % (2 * math.pi)
-                ghost_x = draw_x + GHOST_CAPTAIN_WIDTH // 2 + int(25 * math.cos(angle))
-                ghost_y = draw_y + GHOST_CAPTAIN_HEIGHT // 2 + int(15 * math.sin(angle))
-                pygame.draw.circle(surface, (*self.GHOST_GLOW, 100), (ghost_x, ghost_y), 8)

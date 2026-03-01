@@ -205,6 +205,103 @@ class SecretDoor(Collectible):
         }
 
 
+class Spring(pygame.sprite.Sprite):
+    """Bouncy spring that launches the player upward and to the side."""
+
+    def __init__(self, x: int, y: int, bounce_power: int = -20, horizontal_boost: int = -8):
+        """
+        Create a spring.
+
+        Args:
+            x, y: Position
+            bounce_power: Vertical velocity to apply (negative = up)
+            horizontal_boost: Horizontal velocity to apply (negative = left, positive = right)
+        """
+        super().__init__()
+        self.bounce_power = bounce_power
+        self.horizontal_boost = horizontal_boost
+
+        # Create spring sprite (32x16)
+        self.width = 32
+        self.height = 16
+        self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        self._draw_spring(compressed=False)
+        self.rect = self.image.get_rect(topleft=(x, y))
+
+        # Animation state
+        self.compressed = False
+        self.compress_timer = 0
+
+    def _draw_spring(self, compressed: bool = False) -> None:
+        """Draw the spring sprite."""
+        self.image.fill((0, 0, 0, 0))
+
+        # Spring colors
+        coil_color = (180, 140, 60)  # Brass/gold
+        coil_highlight = (220, 190, 100)
+        coil_shadow = (120, 90, 30)
+        base_color = (100, 80, 60)  # Brown base
+
+        if compressed:
+            # Compressed spring (shorter, coils closer together)
+            # Base plate
+            pygame.draw.rect(self.image, base_color, (2, 12, 28, 4))
+            pygame.draw.rect(self.image, (80, 60, 40), (2, 12, 28, 2))
+            # Compressed coils
+            for i in range(4):
+                y = 10 - i * 2
+                pygame.draw.ellipse(self.image, coil_shadow, (4, y, 24, 4))
+                pygame.draw.ellipse(self.image, coil_color, (4, y, 24, 3))
+                pygame.draw.ellipse(self.image, coil_highlight, (6, y, 8, 2))
+        else:
+            # Normal spring (full height)
+            # Base plate
+            pygame.draw.rect(self.image, base_color, (2, 12, 28, 4))
+            pygame.draw.rect(self.image, (80, 60, 40), (2, 12, 28, 2))
+            # Coils
+            for i in range(4):
+                y = 8 - i * 3
+                pygame.draw.ellipse(self.image, coil_shadow, (4, y + 1, 24, 5))
+                pygame.draw.ellipse(self.image, coil_color, (4, y, 24, 4))
+                pygame.draw.ellipse(self.image, coil_highlight, (6, y, 8, 2))
+            # Top cap
+            pygame.draw.rect(self.image, coil_color, (6, 0, 20, 3))
+            pygame.draw.rect(self.image, coil_highlight, (6, 0, 20, 1))
+
+    def bounce(self, player) -> bool:
+        """
+        Apply bounce to player if touching and not already bouncing.
+        Returns True if bounce was applied.
+        """
+        if self.compress_timer > 0:
+            return False  # Already bouncing
+
+        # Trigger bounce
+        player.velocity_y = self.bounce_power
+        player.velocity_x = self.horizontal_boost
+        player.on_ground = False
+
+        # Start compression animation
+        self.compressed = True
+        self.compress_timer = 15  # Frames to stay compressed
+        self._draw_spring(compressed=True)
+
+        return True
+
+    def update(self) -> None:
+        """Update spring animation."""
+        if self.compress_timer > 0:
+            self.compress_timer -= 1
+            if self.compress_timer <= 0:
+                self.compressed = False
+                self._draw_spring(compressed=False)
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw the spring."""
+        draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
+        surface.blit(self.image, draw_rect)
+
+
 class ExitDoor(pygame.sprite.Sprite):
     """Level exit - unlocked when all treasure is collected."""
 

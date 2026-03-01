@@ -86,6 +86,7 @@ class Level:
         self.enemies = pygame.sprite.Group()
         self.collectibles = pygame.sprite.Group()
         self.projectiles = pygame.sprite.Group()
+        self.springs = pygame.sprite.Group()  # Bouncy springs
 
         self.name = "Unknown"
         self.player_start = (100, 100)
@@ -183,9 +184,21 @@ class Level:
             PirateFlag,
             RumBottle,
             SecretDoor,
+            Spring,
             TreasureChest,
         )
-        from game.enemies import Admiral, Bosun, Cannon, GhostCaptain, Musketeer, Officer, Sailor
+        from game.enemies import (
+            Admiral,
+            Bosun,
+            Cannon,
+            GhostCaptain,
+            GhostMusketeer,
+            GhostOfficer,
+            GhostSailor,
+            Musketeer,
+            Officer,
+            Sailor,
+        )
 
         with open(filepath, 'r') as f:
             data = json.load(f)
@@ -248,6 +261,13 @@ class Level:
                 enemy = Musketeer(x, y, self.projectiles)
             elif enemy_type == "officer":
                 enemy = Officer(x, y)
+            elif enemy_type == "ghost_sailor":
+                patrol_dist = enemy_data.get("patrol_distance", 100)
+                enemy = GhostSailor(x, y, patrol_dist)
+            elif enemy_type == "ghost_musketeer":
+                enemy = GhostMusketeer(x, y, self.projectiles)
+            elif enemy_type == "ghost_officer":
+                enemy = GhostOfficer(x, y)
             elif enemy_type == "cannon":
                 faces_right = enemy_data.get("faces_right", True)
                 enemy = Cannon(x, y, self.projectiles, faces_right)
@@ -302,6 +322,12 @@ class Level:
             elif item_type == "secret_door":
                 unlocks = item_data.get("unlocks", "secret_crypt")
                 item = SecretDoor(x, y, unlocks)
+            elif item_type == "spring":
+                bounce_power = item_data.get("bounce_power", -20)
+                horizontal_boost = item_data.get("horizontal_boost", 0)
+                spring = Spring(x, y, bounce_power, horizontal_boost)
+                self.springs.add(spring)
+                continue  # Don't add to collectibles
             else:
                 continue
 
@@ -456,6 +482,10 @@ class Level:
         for item in self.collectibles:
             item.update()
 
+        # Update springs
+        for spring in self.springs:
+            spring.update()
+
         # Check miniboss defeat (for miniboss levels)
         if self.requires_miniboss_defeat and self.miniboss:
             if not self.miniboss.active and not self.miniboss_defeated:
@@ -506,6 +536,10 @@ class Level:
         # Draw collectibles
         for item in self.collectibles:
             item.draw(surface, camera_offset)
+
+        # Draw springs
+        for spring in self.springs:
+            spring.draw(surface, camera_offset)
 
         # Draw exit
         if self.exit_door:
