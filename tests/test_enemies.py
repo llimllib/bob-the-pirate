@@ -673,6 +673,62 @@ class TestProjectiles:
         # Y should be unchanged (no gravity)
         assert bullet.rect.y == initial_y
 
+    def test_musket_ball_moves_straight(self):
+        """Musket ball should move in straight line."""
+        ball = MusketBall(100, 100, 1)
+        initial_y = ball.rect.y
+
+        for _ in range(10):
+            ball.update()
+
+        # Should have moved right
+        assert ball.rect.x > 100
+        # Y should be unchanged (no gravity)
+        assert ball.rect.y == initial_y
+
+    def test_musket_ball_has_max_range(self):
+        """Musket ball should track distance from start position."""
+        from game.settings import MUSKET_BALL_MAX_RANGE
+
+        ball = MusketBall(100, 100, 1)
+
+        assert ball.start_x == 100
+        assert ball.max_range == MUSKET_BALL_MAX_RANGE
+
+    def test_musket_ball_dies_at_max_range(self):
+        """Musket ball should be killed after traveling max range."""
+        from game.settings import MUSKET_BALL_MAX_RANGE
+
+        group = pygame.sprite.Group()
+        ball = MusketBall(100, 100, 1)
+        group.add(ball)
+
+        # Update until the ball should exceed max range
+        # At PROJECTILE_SPEED=6, takes max_range/6 updates
+        updates_needed = (MUSKET_BALL_MAX_RANGE // 6) + 10
+
+        for _ in range(updates_needed):
+            ball.update()
+
+        # Ball should have been killed
+        assert not ball.alive()
+
+    def test_musket_ball_dies_at_max_range_left(self):
+        """Musket ball traveling left should also die at max range."""
+        from game.settings import MUSKET_BALL_MAX_RANGE
+
+        group = pygame.sprite.Group()
+        ball = MusketBall(500, 100, -1)  # Traveling left
+        group.add(ball)
+
+        updates_needed = (MUSKET_BALL_MAX_RANGE // 6) + 10
+
+        for _ in range(updates_needed):
+            ball.update()
+
+        # Ball should have been killed
+        assert not ball.alive()
+
 
 class MockPlayer:
     """Mock player for testing level updates."""

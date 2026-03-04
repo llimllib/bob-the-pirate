@@ -29,6 +29,7 @@ from game.settings import (
     CANNON_SHOOT_COOLDOWN,
     CANNONBALL_GRAVITY,
     CANNONBALL_SPEED,
+    MUSKET_BALL_MAX_RANGE,
     MUSKETEER_HEALTH,
     MUSKETEER_SHOOT_COOLDOWN,
     OFFICER_HEALTH,
@@ -1127,6 +1128,8 @@ class MusketBall(Projectile):
             PROJECTILE_SPEED * direction, 0,
             8, 8, WHITE, 1
         )
+        self.start_x = x
+        self.max_range = MUSKET_BALL_MAX_RANGE
         self._load_sprite()
 
     def _load_sprite(self) -> None:
@@ -1135,6 +1138,13 @@ class MusketBall(Projectile):
         if sheet:
             # Musket ball is at x=0, 8x8
             self.image = sheet.get_frame(0, 2, 8, 8)  # y=2 to center in 12px height
+
+    def update(self) -> None:
+        """Move projectile and check max range."""
+        super().update()
+        # Remove if traveled beyond max range
+        if abs(self.rect.centerx - self.start_x) > self.max_range:
+            self.kill()
 
 
 class Cannonball(Projectile):

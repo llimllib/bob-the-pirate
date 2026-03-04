@@ -149,14 +149,15 @@ class TestMinibossLevelBehavior:
 
         assert level.miniboss in level.enemies
 
-    def test_level4_has_other_enemies(self):
-        """Level 4 should have other enemies besides the miniboss."""
+    def test_level4_is_arena_style(self):
+        """Level 4 is a miniboss arena with just the Bosun."""
         level = Level()
         level.load_from_file("levels/level4.json")
 
-        # Should have sailors, musketeers, etc.
-        non_bosun_enemies = [e for e in level.enemies if not isinstance(e, Bosun)]
-        assert len(non_bosun_enemies) > 0
+        # Miniboss arena has only the Bosun enemy
+        bosun_enemies = [e for e in level.enemies if isinstance(e, Bosun)]
+        assert len(bosun_enemies) == 1
+        assert len(level.enemies) == 1
 
 
 class TestBossLevelBehavior:
@@ -190,3 +191,58 @@ class TestBossLevelBehavior:
 
         # Projectile should be in level's group
         assert len(level.projectiles) == 1
+
+
+class TestProjectileWallCollision:
+    """Tests for projectile-wall collision."""
+
+    def test_projectile_dies_on_wall_collision(self):
+        """Projectile should be killed when hitting a solid wall."""
+        from game.enemies import MusketBall
+        from game.level import Level, Tile
+
+        level = Level()
+
+        # Create a wall tile at x=200
+        wall = Tile(200, 100, "solid")
+        level.tiles.add(wall)
+        level.solid_tiles.append(wall)
+
+        # Create a projectile heading toward the wall
+        ball = MusketBall(100, 108, 1)  # Moving right toward wall at y=108
+        level.projectiles.add(ball)
+
+        # Mock player for update
+        class MockPlayer:
+            rect = pygame.Rect(500, 100, 32, 48)
+
+        # Update until projectile should hit wall
+        for _ in range(30):
+            level.update(MockPlayer())
+            if not ball.alive():
+                break
+
+        # Projectile should have been killed by wall collision
+        assert not ball.alive()
+
+    def test_projectile_survives_without_wall(self):
+        """Projectile should survive if no wall in the way."""
+        from game.enemies import MusketBall
+        from game.level import Level
+
+        level = Level()
+        level.width = 1000  # Make level wide enough
+
+        # Create a projectile with no walls
+        ball = MusketBall(100, 100, 1)
+        level.projectiles.add(ball)
+
+        class MockPlayer:
+            rect = pygame.Rect(500, 100, 32, 48)
+
+        # Update a few times
+        for _ in range(10):
+            level.update(MockPlayer())
+
+        # Projectile should still be alive
+        assert ball.alive()

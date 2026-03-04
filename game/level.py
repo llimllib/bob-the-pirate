@@ -477,6 +477,12 @@ class Level:
                 projectile.rect.left > self.width or
                 projectile.rect.top > self.height):
                 projectile.kill()
+                continue
+            # Remove projectiles that hit solid walls
+            for tile in self.solid_tiles:
+                if projectile.rect.colliderect(tile.rect):
+                    projectile.kill()
+                    break
 
         # Update collectibles (for animations like spinning coins)
         for item in self.collectibles:
