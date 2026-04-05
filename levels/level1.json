@@ -2055,6 +2055,13 @@
       "x": 3600,
       "y": 320,
       "powerup": "double_jump"
+    },
+    {
+      "type": "skin",
+      "skin_id": "sailor",
+      "hidden_type": "visible",
+      "x": 1850,
+      "y": 200
     }
   ],
   "exit": {

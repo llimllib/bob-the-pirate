@@ -493,6 +493,13 @@
       "type": "rum",
       "x": 620,
       "y": 400
+    },
+    {
+      "type": "skin",
+      "skin_id": "admiral",
+      "hidden_type": "hidden",
+      "x": 400,
+      "y": 300
     }
   ]
 }

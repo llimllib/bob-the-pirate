@@ -111,7 +111,14 @@ class Player(pygame.sprite.Sprite):
 
     def _load_animations(self) -> None:
         """Load player animations from sprite sheet or use placeholders."""
-        sprite_path = "assets/sprites/player.png"
+        # Get selected skin sprite
+        from game.skins import get_selected_skin_sprite
+        skin_sprite = get_selected_skin_sprite()
+        sprite_path = f"assets/sprites/{skin_sprite}"
+
+        # Fall back to default if skin sprite doesn't exist
+        if not os.path.exists(sprite_path):
+            sprite_path = "assets/sprites/player.png"
 
         if os.path.exists(sprite_path):
             sheet = SpriteSheet(sprite_path)
@@ -182,6 +189,24 @@ class Player(pygame.sprite.Sprite):
         # Anchor slam - red/orange tint for power attack
         slam_frames = create_placeholder_frames(PLAYER_WIDTH, PLAYER_HEIGHT, (200, 100, 50), 3, "slam")
         self.sprite.add_animation("slam", Animation(slam_frames, frame_duration=5, loop=False))
+
+    def reload_skin(self) -> None:
+        """Reload animations with the currently selected skin."""
+        # Store current animation state
+        current_anim = self.sprite.current_animation
+
+        # Clear and reload animations
+        self.sprite = AnimatedSprite()
+        self._load_animations()
+
+        # Restore animation state
+        if current_anim:
+            self.sprite.play(current_anim)
+        else:
+            self.sprite.play("idle")
+
+        # Update image
+        self.image = self.sprite.get_frame()
 
     def _update_animation_state(self) -> None:
         """Update which animation should be playing based on player state."""

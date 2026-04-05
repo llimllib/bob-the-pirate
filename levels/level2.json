@@ -2137,6 +2137,13 @@
       "x": 4000,
       "y": 400,
       "powerup": "grog"
+    },
+    {
+      "type": "skin",
+      "skin_id": "ghost",
+      "hidden_type": "shimmer",
+      "x": 2200,
+      "y": 300
     }
   ],
   "exit": {

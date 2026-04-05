@@ -184,6 +184,7 @@ class Level:
             PirateFlag,
             RumBottle,
             SecretDoor,
+            SkinPickup,
             Spring,
             TreasureChest,
         )
@@ -322,6 +323,10 @@ class Level:
             elif item_type == "secret_door":
                 unlocks = item_data.get("unlocks", "secret_crypt")
                 item = SecretDoor(x, y, unlocks)
+            elif item_type == "skin":
+                skin_id = item_data.get("skin_id", "ghost")
+                hidden_type = item_data.get("hidden_type", "visible")
+                item = SkinPickup(x, y, skin_id, hidden_type)
             elif item_type == "spring":
                 bounce_power = item_data.get("bounce_power", -20)
                 horizontal_boost = item_data.get("horizontal_boost", 0)

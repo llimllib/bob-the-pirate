@@ -1551,6 +1551,13 @@
       "y": 752,
       "bounce_power": -28,
       "horizontal_boost": -18
+    },
+    {
+      "type": "skin",
+      "skin_id": "skeleton",
+      "hidden_type": "hidden",
+      "x": 800,
+      "y": 700
     }
   ],
   "exit": {

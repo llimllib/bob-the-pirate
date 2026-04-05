@@ -3198,6 +3198,13 @@
       "x": 4650,
       "y": 260,
       "powerup": "magnet"
+    },
+    {
+      "type": "skin",
+      "skin_id": "noble",
+      "hidden_type": "shimmer",
+      "x": 2000,
+      "y": 150
     }
   ],
   "exit": {

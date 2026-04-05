@@ -368,3 +368,93 @@ def draw_text_centered(surface: pygame.Surface, text: str, y: int,
     text_surface = font.render(text, True, color)
     x = (SCREEN_WIDTH - text_surface.get_width()) // 2
     surface.blit(text_surface, (x, y))
+
+
+class SkinNotification:
+    """Subtle corner notification for skin unlocks."""
+
+    def __init__(self):
+        self.active = False
+        self.skin_name = ""
+        self.timer = 0
+        self.duration = 180  # 3 seconds at 60 FPS
+        self.fade_duration = 30  # 0.5 seconds fade in/out
+        self.font = None
+        self.small_font = None
+
+    def _init_fonts(self) -> None:
+        """Initialize fonts."""
+        if self.font is None:
+            try:
+                self.font = pygame.font.Font(None, 28)
+                self.small_font = pygame.font.Font(None, 20)
+            except pygame.error:
+                pass
+
+    def show(self, skin_name: str) -> None:
+        """Show a skin unlock notification."""
+        self.active = True
+        self.skin_name = skin_name
+        self.timer = 0
+
+    def update(self) -> None:
+        """Update the notification."""
+        if not self.active:
+            return
+
+        self.timer += 1
+        if self.timer >= self.duration:
+            self.active = False
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """Draw the notification in the bottom-right corner."""
+        if not self.active:
+            return
+
+        self._init_fonts()
+        if not self.font:
+            return
+
+        # Calculate alpha for fade in/out
+        if self.timer < self.fade_duration:
+            alpha = int(255 * (self.timer / self.fade_duration))
+        elif self.timer > self.duration - self.fade_duration:
+            remaining = self.duration - self.timer
+            alpha = int(255 * (remaining / self.fade_duration))
+        else:
+            alpha = 255
+
+        # Notification box dimensions
+        box_width = 180
+        box_height = 50
+        box_x = SCREEN_WIDTH - box_width - 10
+        box_y = SCREEN_HEIGHT - box_height - 10
+
+        # Create semi-transparent background
+        bg_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        bg_surface.fill((40, 30, 60, min(200, alpha)))
+        pygame.draw.rect(bg_surface, (100, 80, 140, min(255, alpha)), (0, 0, box_width, box_height), 2)
+        surface.blit(bg_surface, (box_x, box_y))
+
+        # Draw icon (small chest/wardrobe)
+        icon_x = box_x + 8
+        icon_y = box_y + 10
+        icon_surface = pygame.Surface((30, 30), pygame.SRCALPHA)
+        # Purple chest
+        pygame.draw.rect(icon_surface, (100, 60, 150), (2, 8, 26, 20), border_radius=2)
+        pygame.draw.rect(icon_surface, (140, 100, 190), (4, 10, 22, 16), border_radius=1)
+        pygame.draw.rect(icon_surface, (80, 50, 120), (2, 4, 26, 8), border_radius=2)
+        pygame.draw.rect(icon_surface, (255, 215, 0), (12, 12, 6, 8))
+        pygame.draw.circle(icon_surface, (255, 215, 0), (15, 8), 4)
+        icon_surface.set_alpha(alpha)
+        surface.blit(icon_surface, (icon_x, icon_y))
+
+        # "Skin Unlocked" text
+        header_text = self.small_font.render("Skin Unlocked!", True, GOLD)
+        header_text.set_alpha(alpha)
+        surface.blit(header_text, (box_x + 42, box_y + 8))
+
+        # Skin name
+        name_text = self.font.render(self.skin_name, True, WHITE)
+        name_text.set_alpha(alpha)
+        surface.blit(name_text, (box_x + 42, box_y + 25))

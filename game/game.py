@@ -13,6 +13,7 @@ from game.screens import (
     LevelIntroCard,
     PauseMenu,
     ScreenTransition,
+    SkinsMenu,
     TitleScreen,
     VictoryScreen,
 )
@@ -29,7 +30,7 @@ from game.settings import (
     TITLE,
 )
 from game.tiles import get_background_layers
-from game.ui import HUD
+from game.ui import HUD, SkinNotification
 
 
 class GameState:
@@ -64,6 +65,7 @@ class Game:
         self.level = None
         self.camera = None
         self.hud = HUD()
+        self.skin_notification = SkinNotification()
 
         # Score tracking
         self.score = 0
@@ -80,6 +82,7 @@ class Game:
         # Screen managers
         self.title_screen = TitleScreen()
         self.pause_menu = PauseMenu()
+        self.skins_menu = SkinsMenu()
         self.game_over_screen = GameOverScreen()
         self.level_complete_screen = LevelCompleteScreen()
         self.victory_screen = VictoryScreen()
@@ -225,12 +228,26 @@ class Game:
                     continue
 
                 if self.state == GameState.MENU:
-                    if event.key == pygame.K_ESCAPE:
+                    # Check if skins menu is open
+                    if self.skins_menu.active:
+                        result = self.skins_menu.handle_input(event.key)
+                        if result == "back":
+                            self.skins_menu.close()
+                            play_sound("menu_select")
+                        elif result == "changed":
+                            play_sound("menu_confirm")
+                        elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                            play_sound("menu_select")
+                    elif event.key == pygame.K_ESCAPE:
                         self.running = False
                     else:
                         result = self.title_screen.handle_input(event.key)
-                        if result:
-                            # Level selected
+                        if result == "skins":
+                            # Open skins menu
+                            play_sound("menu_confirm")
+                            self.skins_menu.open()
+                        elif result:
+                            # Level selected (tuple)
                             play_sound("menu_confirm")
                             level_file, music_file = result
                             self._start_level_with_transition(level_file, music_file)
@@ -280,14 +297,31 @@ class Game:
                             play_sound("slash")  # Slam start sound
 
                 elif self.state == GameState.PAUSED:
-                    result = self.pause_menu.handle_input(event.key)
-                    if result == "resume":
-                        self.state = GameState.PLAYING
-                        self.audio.unpause_music()
-                    elif result == "quit":
-                        self._return_to_menu_with_transition()
-                    elif event.key in (pygame.K_UP, pygame.K_DOWN):
-                        play_sound("menu_select")
+                    # Check if skins menu is open
+                    if self.skins_menu.active:
+                        result = self.skins_menu.handle_input(event.key)
+                        if result == "back":
+                            self.skins_menu.close()
+                            play_sound("menu_select")
+                        elif result == "changed":
+                            play_sound("menu_confirm")
+                            # Reload player skin
+                            if self.player:
+                                self.player.reload_skin()
+                        elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                            play_sound("menu_select")
+                    else:
+                        result = self.pause_menu.handle_input(event.key)
+                        if result == "resume":
+                            self.state = GameState.PLAYING
+                            self.audio.unpause_music()
+                        elif result == "skins":
+                            self.skins_menu.open()
+                            play_sound("menu_confirm")
+                        elif result == "quit":
+                            self._return_to_menu_with_transition()
+                        elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                            play_sound("menu_select")
 
                 elif self.state == GameState.GAME_OVER:
                     result = self.game_over_screen.handle_input(event.key)
@@ -524,6 +558,19 @@ class Game:
                 self.unlocked_secrets.add(unlocks)
                 self.title_screen.unlock_secret(unlocks)
                 play_sound("door_unlock")
+            elif item_type == "skin":
+                # Unlock a player skin
+                from game.skins import SKINS, unlock_skin
+                skin_id = item.get("skin_id", "ghost")
+                if unlock_skin(skin_id):
+                    # Show notification for new unlock
+                    skin_info = SKINS.get(skin_id, {})
+                    skin_name = skin_info.get("name", skin_id.title())
+                    self.skin_notification.show(skin_name)
+                    play_sound("powerup")
+
+        # Update skin notification
+        self.skin_notification.update()
 
         # Check springs
         for spring in self.level.springs:
@@ -722,6 +769,9 @@ class Game:
         """Render the game."""
         if self.state == GameState.MENU:
             self.title_screen.draw(self.screen)
+            # Draw skins menu overlay if open
+            if self.skins_menu.active:
+                self.skins_menu.draw(self.screen)
         elif self.state == GameState.LEVEL_INTRO:
             self._draw_game()
             self.level_intro.draw(self.screen)
@@ -730,6 +780,9 @@ class Game:
         elif self.state == GameState.PAUSED:
             self._draw_game()
             self.pause_menu.draw(self.screen)
+            # Draw skins menu overlay if open
+            if self.skins_menu.active:
+                self.skins_menu.draw(self.screen)
         elif self.state == GameState.GAME_OVER:
             self.game_over_screen.draw(self.screen)
         elif self.state == GameState.LEVEL_COMPLETE:
@@ -784,6 +837,9 @@ class Game:
 
         # Draw HUD
         self.hud.draw(self.screen, self.player, self.level, self.score)
+
+        # Draw skin unlock notification
+        self.skin_notification.draw(self.screen)
 
     def _print_debug_info(self) -> None:
         """Print debug information to console."""

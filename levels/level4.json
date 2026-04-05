@@ -67,7 +67,15 @@
       "arena_right": 768
     }
   ],
-  "collectibles": [],
+  "collectibles": [
+    {
+      "type": "skin",
+      "skin_id": "blackbeard",
+      "hidden_type": "visible",
+      "x": 400,
+      "y": 350
+    }
+  ],
   "exit": {
     "x": 750,
     "y": 480

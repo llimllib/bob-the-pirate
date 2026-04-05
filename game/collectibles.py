@@ -1,5 +1,7 @@
 """Collectibles: treasure chests, coins, power-ups."""
 
+import math
+
 import pygame
 
 from game.collectible_sprites import get_collectible_sprites
@@ -328,3 +330,95 @@ class ExitDoor(pygame.sprite.Sprite):
         """Draw the exit door."""
         draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
         surface.blit(self.image, draw_rect)
+
+
+class SkinPickup(Collectible):
+    """Hidden collectible that unlocks a player skin."""
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        skin_id: str,
+        hidden_type: str = "visible"
+    ):
+        """
+        Create a skin pickup.
+
+        Args:
+            x, y: Position
+            skin_id: ID of the skin to unlock (e.g., 'ghost', 'skeleton')
+            hidden_type: How the pickup is displayed:
+                - 'visible': Fully visible, just hard to reach
+                - 'hidden': Completely invisible until touched
+                - 'shimmer': Semi-transparent with subtle animation
+        """
+        super().__init__(x, y, 24, 24)
+        self.skin_id = skin_id
+        self.hidden_type = hidden_type
+        self.frame = 0
+
+        # Create the visual (treasure chest with glow)
+        self._create_sprite()
+
+    def _create_sprite(self) -> None:
+        """Create the skin pickup sprite."""
+        self.image = pygame.Surface((24, 24), pygame.SRCALPHA)
+
+        # Draw a glowing chest/wardrobe icon
+        # Outer glow
+        pygame.draw.rect(self.image, (255, 215, 0, 100), (0, 0, 24, 24), border_radius=4)
+        # Chest body (purple/magical)
+        pygame.draw.rect(self.image, (100, 60, 150), (2, 6, 20, 16), border_radius=2)
+        pygame.draw.rect(self.image, (140, 100, 190), (4, 8, 16, 12), border_radius=1)
+        # Lid
+        pygame.draw.rect(self.image, (80, 50, 120), (2, 4, 20, 6), border_radius=2)
+        # Golden clasp
+        pygame.draw.rect(self.image, (255, 215, 0), (10, 10, 4, 6))
+        pygame.draw.circle(self.image, (255, 215, 0), (12, 8), 3)
+        # Star sparkle
+        pygame.draw.line(self.image, (255, 255, 200), (18, 2), (20, 4), 1)
+        pygame.draw.line(self.image, (255, 255, 200), (19, 1), (19, 5), 1)
+
+    def update(self) -> None:
+        """Update animation for shimmer effect."""
+        self.frame += 1
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw the skin pickup with appropriate visibility."""
+        if self.collected:
+            return
+
+        # Hidden type is invisible
+        if self.hidden_type == "hidden":
+            return
+
+        draw_rect = self.rect.move(-camera_offset[0], -camera_offset[1])
+
+        if self.hidden_type == "shimmer":
+            # Semi-transparent with oscillating alpha
+            base_alpha = 70
+            wave = math.sin(self.frame * 0.1) * 20
+            alpha = int(base_alpha + wave)
+
+            # Create a copy with alpha
+            temp_surface = self.image.copy()
+            temp_surface.set_alpha(alpha)
+            surface.blit(temp_surface, draw_rect)
+
+            # Add occasional sparkle
+            if self.frame % 30 < 5:
+                sparkle_x = draw_rect.x + 12 + int(math.sin(self.frame * 0.3) * 8)
+                sparkle_y = draw_rect.y + 12 + int(math.cos(self.frame * 0.3) * 8)
+                pygame.draw.circle(surface, (255, 255, 200, 150), (sparkle_x, sparkle_y), 2)
+        else:
+            # Fully visible
+            surface.blit(self.image, draw_rect)
+
+    def collect(self, player) -> dict:
+        """Collect the skin pickup."""
+        super().collect(player)
+        return {
+            "type": "skin",
+            "skin_id": self.skin_id,
+        }

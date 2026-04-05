@@ -176,6 +176,9 @@ class TitleScreen:
         # Wave animation for ocean
         self.wave_offset = 0
 
+        # Menu mode: 'levels' or 'skins'
+        self.mode = "levels"
+
         # Available levels (always shown)
         self.base_levels = [
             ("levels/level1.json", "Port Town", "Tutorial", "level1.ogg"),
@@ -215,20 +218,25 @@ class TitleScreen:
         self.frame += 1
         self.wave_offset = math.sin(self.frame * 0.05) * 5
 
-    def handle_input(self, key: int) -> Optional[tuple[str, str]]:
+    def handle_input(self, key: int) -> Optional[tuple[str, str] | str]:
         """
         Handle menu input.
 
         Returns:
-            Tuple of (level_file, music_file) if level selected, None otherwise
+            Tuple of (level_file, music_file) if level selected,
+            'skins' if skins menu requested,
+            None otherwise
         """
         if key == pygame.K_UP:
-            self.selected_level = (self.selected_level - 1) % len(self.levels)
+            self.selected_level = (self.selected_level - 1) % (len(self.levels) + 1)
             return None
         elif key == pygame.K_DOWN:
-            self.selected_level = (self.selected_level + 1) % len(self.levels)
+            self.selected_level = (self.selected_level + 1) % (len(self.levels) + 1)
             return None
         elif key == pygame.K_RETURN:
+            # Last option is "Skins"
+            if self.selected_level == len(self.levels):
+                return "skins"
             level = self.levels[self.selected_level]
             return (level[0], level[3])  # file, music
         return None
@@ -289,7 +297,7 @@ class TitleScreen:
         box_x = SCREEN_WIDTH // 2 - 200
         box_y = 165
         box_width = 400
-        box_height = 220
+        box_height = 250  # Taller to fit Skins option
 
         # Box shadow
         pygame.draw.rect(surface, (30, 30, 30),
@@ -333,6 +341,27 @@ class TitleScreen:
             sub_rect = sub_text.get_rect(right=box_x + box_width - 20, centery=y_pos + 10)
             surface.blit(sub_text, sub_rect)
 
+        # Skins option (after levels)
+        skins_y = box_y + 55 + len(self.levels) * 28
+        skins_selected = (self.selected_level == len(self.levels))
+
+        if skins_selected:
+            pygame.draw.rect(surface, GOLD,
+                           (box_x + 15, skins_y - 2, box_width - 30, 24))
+            text_color = DARK_RED
+            indicator = self.menu_font.render("►", True, DARK_RED)
+            surface.blit(indicator, (box_x + 20, skins_y))
+        else:
+            text_color = (80, 60, 40)
+
+        skins_text = self.menu_font.render("⚓ Skins", True, text_color)
+        surface.blit(skins_text, (box_x + 45, skins_y))
+
+        # Skins subtitle
+        skins_sub = self.small_font.render("Customize", True, (120, 100, 80))
+        skins_sub_rect = skins_sub.get_rect(right=box_x + box_width - 20, centery=skins_y + 10)
+        surface.blit(skins_sub, skins_sub_rect)
+
         # Instructions at bottom
         instructions = [
             ("↑↓", "Select Level"),
@@ -374,7 +403,7 @@ class PauseMenu:
 
     def __init__(self):
         self.selected = 0
-        self.options = ["Resume", "Quit to Menu"]
+        self.options = ["Resume", "Skins", "Quit to Menu"]
         self.title_font = pygame.font.Font(None, 64)
         self.menu_font = pygame.font.Font(None, 36)
 
@@ -383,7 +412,7 @@ class PauseMenu:
         Handle menu input.
 
         Returns:
-            'resume', 'quit', or None
+            'resume', 'skins', 'quit', or None
         """
         if key == pygame.K_UP:
             self.selected = (self.selected - 1) % len(self.options)
@@ -394,6 +423,8 @@ class PauseMenu:
         elif key == pygame.K_RETURN:
             if self.selected == 0:
                 return "resume"
+            elif self.selected == 1:
+                return "skins"
             else:
                 return "quit"
         elif key == pygame.K_ESCAPE:
@@ -749,3 +780,159 @@ class VictoryScreen:
             continue_surface.set_alpha(alpha)
             continue_rect = continue_surface.get_rect(center=(SCREEN_WIDTH // 2, 480))
             surface.blit(continue_surface, continue_rect)
+
+
+class SkinsMenu:
+    """Menu for selecting player skins."""
+
+    def __init__(self):
+        self.active = False
+        self.selected = 0
+        self.title_font = pygame.font.Font(None, 48)
+        self.menu_font = pygame.font.Font(None, 32)
+        self.small_font = pygame.font.Font(None, 24)
+        self.desc_font = pygame.font.Font(None, 20)
+
+    def open(self) -> None:
+        """Open the skins menu."""
+        from game.skins import SKINS, get_selected_skin
+        self.active = True
+        # Set selection to currently equipped skin
+        selected = get_selected_skin()
+        self.skin_ids = list(SKINS.keys())
+        if selected in self.skin_ids:
+            self.selected = self.skin_ids.index(selected)
+        else:
+            self.selected = 0
+
+    def close(self) -> None:
+        """Close the skins menu."""
+        self.active = False
+
+    def handle_input(self, key: int) -> Optional[str]:
+        """
+        Handle menu input.
+
+        Returns:
+            'back' to close menu, 'changed' if skin was changed, None otherwise
+        """
+        from game.skins import SKINS, is_skin_unlocked, set_selected_skin
+
+        if key == pygame.K_ESCAPE:
+            return "back"
+
+        skin_ids = list(SKINS.keys())
+        num_skins = len(skin_ids)
+
+        if key == pygame.K_UP:
+            self.selected = (self.selected - 1) % num_skins
+            return None
+        elif key == pygame.K_DOWN:
+            self.selected = (self.selected + 1) % num_skins
+            return None
+        elif key == pygame.K_RETURN:
+            skin_id = skin_ids[self.selected]
+            if is_skin_unlocked(skin_id):
+                set_selected_skin(skin_id)
+                return "changed"
+            return None  # Can't select locked skin
+
+        return None
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """Draw the skins menu overlay."""
+        if not self.active:
+            return
+
+        from game.skins import SKINS, get_selected_skin, is_skin_unlocked
+
+        # Semi-transparent dark overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.fill((0, 0, 20))
+        overlay.set_alpha(200)
+        surface.blit(overlay, (0, 0))
+
+        # Title
+        title = self.title_font.render("SELECT SKIN", True, GOLD)
+        title_shadow = self.title_font.render("SELECT SKIN", True, BLACK)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 60))
+        surface.blit(title_shadow, (title_rect.x + 2, title_rect.y + 2))
+        surface.blit(title, title_rect)
+
+        # Skin list
+        skin_ids = list(SKINS.keys())
+        selected_skin = get_selected_skin()
+        list_start_y = 110
+        item_height = 50
+
+        for i, skin_id in enumerate(skin_ids):
+            skin = SKINS[skin_id]
+            y = list_start_y + i * item_height
+            unlocked = is_skin_unlocked(skin_id)
+            is_selected = (i == self.selected)
+            is_equipped = (skin_id == selected_skin)
+
+            # Background highlight for selected
+            if is_selected:
+                highlight = pygame.Surface((350, item_height - 4), pygame.SRCALPHA)
+                highlight.fill((100, 80, 140, 150))
+                surface.blit(highlight, (SCREEN_WIDTH // 2 - 175, y - 2))
+
+            # Skin icon (small colored box)
+            icon_x = SCREEN_WIDTH // 2 - 160
+            icon_surface = pygame.Surface((36, 36), pygame.SRCALPHA)
+            if unlocked:
+                # Draw a mini chest icon
+                pygame.draw.rect(icon_surface, (100, 60, 150), (2, 8, 32, 24), border_radius=2)
+                pygame.draw.rect(icon_surface, (140, 100, 190), (4, 10, 28, 20), border_radius=1)
+                pygame.draw.rect(icon_surface, (80, 50, 120), (2, 4, 32, 8), border_radius=2)
+                pygame.draw.rect(icon_surface, (255, 215, 0), (14, 14, 8, 10))
+            else:
+                # Locked icon (gray with lock)
+                pygame.draw.rect(icon_surface, (60, 60, 70), (2, 8, 32, 24), border_radius=2)
+                pygame.draw.rect(icon_surface, (40, 40, 50), (2, 4, 32, 8), border_radius=2)
+                # Lock symbol
+                pygame.draw.rect(icon_surface, (80, 80, 90), (12, 12, 12, 14))
+                pygame.draw.arc(icon_surface, (80, 80, 90), (12, 6, 12, 12), 0, 3.14, 2)
+            surface.blit(icon_surface, (icon_x, y))
+
+            # Skin name
+            if unlocked:
+                name_color = GOLD if is_selected else WHITE
+            else:
+                name_color = (100, 100, 100)
+
+            name_text = skin["name"] if unlocked else "???"
+            name_surface = self.menu_font.render(name_text, True, name_color)
+            surface.blit(name_surface, (icon_x + 45, y + 2))
+
+            # Description (smaller, below name)
+            if unlocked:
+                desc_text = skin["description"]
+                desc_color = (180, 180, 180) if is_selected else (120, 120, 120)
+            else:
+                desc_text = "Find hidden in a level"
+                desc_color = (80, 80, 80)
+            desc_surface = self.desc_font.render(desc_text, True, desc_color)
+            surface.blit(desc_surface, (icon_x + 45, y + 26))
+
+            # Equipped indicator
+            if is_equipped and unlocked:
+                equip_surface = self.small_font.render("[EQUIPPED]", True, (100, 255, 100))
+                equip_rect = equip_surface.get_rect(right=SCREEN_WIDTH // 2 + 160, centery=y + item_height // 2)
+                surface.blit(equip_surface, equip_rect)
+
+            # Selection arrow
+            if is_selected:
+                arrow = self.menu_font.render("►", True, GOLD)
+                surface.blit(arrow, (icon_x - 25, y + 5))
+
+        # Help text
+        help_y = SCREEN_HEIGHT - 60
+        help_lines = [
+            "↑↓ Select  |  ENTER Equip  |  ESC Back",
+        ]
+        for i, line in enumerate(help_lines):
+            help_surface = self.small_font.render(line, True, (150, 150, 150))
+            help_rect = help_surface.get_rect(center=(SCREEN_WIDTH // 2, help_y + i * 20))
+            surface.blit(help_surface, help_rect)

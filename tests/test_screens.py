@@ -180,13 +180,14 @@ class TestTitleScreen:
         assert title.selected_level == 1
 
     def test_selection_wraps_around(self):
-        """Selection should wrap from top to bottom."""
+        """Selection should wrap from top to bottom (including Skins option)."""
         title = TitleScreen()
         title.selected_level = 0
 
         title.handle_input(pygame.K_UP)
 
-        assert title.selected_level == len(title.levels) - 1
+        # Now wraps to include the Skins option at the end
+        assert title.selected_level == len(title.levels)  # Skins is after all levels
 
     def test_enter_returns_level_info(self):
         """ENTER should return selected level file and music."""
@@ -242,10 +243,18 @@ class TestPauseMenu:
     def test_enter_on_quit_returns_quit(self):
         """ENTER on Quit should return 'quit'."""
         pause = PauseMenu()
-        pause.selected = 1  # Quit
+        pause.selected = 2  # Quit (now at index 2 after adding Skins)
 
         result = pause.handle_input(pygame.K_RETURN)
         assert result == "quit"
+
+    def test_enter_on_skins_returns_skins(self):
+        """ENTER on Skins should return 'skins'."""
+        pause = PauseMenu()
+        pause.selected = 1  # Skins
+
+        result = pause.handle_input(pygame.K_RETURN)
+        assert result == "skins"
 
     def test_reset_resets_selection(self):
         """Reset should return selection to 0."""
