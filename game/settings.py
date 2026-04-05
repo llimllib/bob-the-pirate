@@ -112,6 +112,24 @@ GHOST_CAPTAIN_ATTACK_COOLDOWN = 60  # 1 second
 GHOST_CAPTAIN_TELEPORT_COOLDOWN = 120  # 2 seconds
 GHOST_CAPTAIN_PHASE_DURATION = 45  # Invincible phase duration
 
+# Ghost Captain skin settings (player skin, not the boss)
+GHOST_SKIN_HEALTH_BONUS = 2  # +2 max health (7 total)
+GHOST_SKIN_SPEED_MULT = 0.8  # 80% speed
+GHOST_SKIN_ATTACK_DURATION = 120  # 2 seconds at 60 FPS (flame blast)
+GHOST_SKIN_ATTACK_RANGE = 40  # Wider flame range
+GHOST_SKIN_ATTACK_HEIGHT = 32  # Taller flame hitbox
+GHOST_SKIN_CAN_MOVE_WHILE_ATTACKING = True  # Unique ability
+GHOST_SKIN_ATTACK_FRAME_WIDTHS = [32, 56, 56]  # Sprite frame widths for flame attack
+
+# Skeleton Pirate skin settings
+SKELETON_SKIN_HEALTH_PENALTY = 2  # -2 max health (3 total)
+SKELETON_SKIN_DAMAGE_MULT = 2.0  # 2x damage
+SKELETON_SKIN_BONE_EVERY_N_ATTACKS = 4  # Throw bone every 4th attack
+SKELETON_BONE_SPEED = 8  # Projectile speed
+SKELETON_BONE_DAMAGE = 2  # Same as boosted melee
+SKELETON_BONE_SIZE = 16  # Bone sprite size
+SKELETON_BONE_RANGE = 300  # Max travel distance before despawning
+
 # Parrot settings
 PARROT_WIDTH = 16
 PARROT_HEIGHT = 12

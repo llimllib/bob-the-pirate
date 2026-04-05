@@ -249,11 +249,27 @@ class Level:
         # Apply auto-tiling (assigns sprites based on neighbors)
         self._apply_auto_tiling()
 
+        # Check if Admiral Bob skin is active (removes first of each regular enemy type)
+        from game.skins import is_admiral_bob_active
+        admiral_bob_active = is_admiral_bob_active()
+
+        # Enemy types that are excluded from Admiral Bob's effect (bosses)
+        boss_enemy_types = {"bosun", "admiral", "ghost_captain"}
+
+        # Track which enemy types have had their first instance skipped
+        skipped_enemy_types: set[str] = set()
+
         # Load enemies
         for enemy_data in data.get("enemies", []):
             enemy_type = enemy_data.get("type", "sailor")
             x = enemy_data.get("x", 0)
             y = enemy_data.get("y", 0)
+
+            # Admiral Bob effect: skip the first instance of each regular enemy type
+            if admiral_bob_active and enemy_type not in boss_enemy_types:
+                if enemy_type not in skipped_enemy_types:
+                    skipped_enemy_types.add(enemy_type)
+                    continue  # Skip this enemy
 
             if enemy_type == "sailor":
                 patrol_dist = enemy_data.get("patrol_distance", 100)

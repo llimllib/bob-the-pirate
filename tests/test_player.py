@@ -20,6 +20,9 @@ def init_pygame():
     """Initialize pygame for tests."""
     pygame.init()
     pygame.display.set_mode((1, 1), pygame.HIDDEN)
+    # Reset skin progress to default to ensure consistent test behavior
+    from game.skins import reset_skin_progress
+    reset_skin_progress()
     yield
     pygame.quit()
 

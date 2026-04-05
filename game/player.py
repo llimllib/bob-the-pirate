@@ -18,6 +18,13 @@ from game.settings import (
     BARREL_ROLL_SPEED,
     CUTLASS_FURY_COOLDOWN_MULT,
     CUTLASS_FURY_RANGE_MULT,
+    GHOST_SKIN_ATTACK_DURATION,
+    GHOST_SKIN_ATTACK_FRAME_WIDTHS,
+    GHOST_SKIN_ATTACK_HEIGHT,
+    GHOST_SKIN_ATTACK_RANGE,
+    GHOST_SKIN_CAN_MOVE_WHILE_ATTACKING,
+    GHOST_SKIN_HEALTH_BONUS,
+    GHOST_SKIN_SPEED_MULT,
     GRAVITY,
     INVINCIBILITY_FRAMES,
     MAX_FALL_SPEED,
@@ -26,6 +33,9 @@ from game.settings import (
     PLAYER_MAX_HEALTH,
     PLAYER_SPEED,
     PLAYER_WIDTH,
+    SKELETON_SKIN_BONE_EVERY_N_ATTACKS,
+    SKELETON_SKIN_DAMAGE_MULT,
+    SKELETON_SKIN_HEALTH_PENALTY,
 )
 
 
@@ -34,6 +44,11 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self, x: int, y: int):
         super().__init__()
+
+        # Check for special skins
+        from game.skins import is_ghost_captain_active, is_skeleton_pirate_active
+        self.is_ghost_captain = is_ghost_captain_active()
+        self.is_skeleton_pirate = is_skeleton_pirate_active()
 
         # Set up animated sprite
         self.sprite = AnimatedSprite()
@@ -52,10 +67,18 @@ class Player(pygame.sprite.Sprite):
         self.on_ground = False
         self.facing_right = True
 
-        # Stats
-        self.max_health = PLAYER_MAX_HEALTH
+        # Stats - skins modify health
+        base_health = PLAYER_MAX_HEALTH
+        if self.is_ghost_captain:
+            base_health += GHOST_SKIN_HEALTH_BONUS
+        elif self.is_skeleton_pirate:
+            base_health -= SKELETON_SKIN_HEALTH_PENALTY
+        self.max_health = max(1, base_health)  # Minimum 1 health
         self.health = self.max_health
         self.lives = 3
+
+        # Ghost Captain wispy trail particles
+        self.trail_particles: list[dict] = []
 
         # Combat
         self.attacking = False
@@ -65,6 +88,11 @@ class Player(pygame.sprite.Sprite):
         self.invincibility_timer = 0
         self.hurt_timer = 0  # For hurt animation
         self.enemies_hit_this_attack: set[int] = set()  # Track enemy IDs hit during current attack
+        self.last_attack_frame = -1  # Track animation frame for Ghost Captain multi-hit
+
+        # Skeleton Pirate bone throw tracking
+        self.attack_count = 0  # Counts attacks for bone throw
+        self.pending_bone_throw = False  # Set to True when bone should be thrown
 
         # Power-ups
         self.has_parrot = False
@@ -141,13 +169,28 @@ class Player(pygame.sprite.Sprite):
             hurt_frames = sheet.get_strip(PLAYER_HEIGHT * 2, PLAYER_WIDTH, PLAYER_HEIGHT, 1, x_start=PLAYER_WIDTH * 2)
             self.sprite.add_animation("hurt", Animation(hurt_frames, frame_duration=8, loop=False))
 
-            # Row 3: Attack (3 frames with variable widths: 32, 56, 32)
+            # Row 3: Attack (3 frames with variable widths)
+            # Ghost Captain has different frame widths for flame attack
             attack_y = PLAYER_HEIGHT * 3
-            attack_frame_0 = sheet.sheet.subsurface((0, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
-            attack_frame_1 = sheet.sheet.subsurface((PLAYER_WIDTH, attack_y, ATTACK_FRAME_WIDTH, PLAYER_HEIGHT))
-            attack_frame_2 = sheet.sheet.subsurface((PLAYER_WIDTH + ATTACK_FRAME_WIDTH, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
-            attack_frames = [attack_frame_0, attack_frame_1, attack_frame_2]
-            self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
+            if self.is_ghost_captain:
+                # Ghost Captain flame attack: 32, 56, 56 widths
+                # Fast animation that loops during the 2-second attack
+                frame_widths = GHOST_SKIN_ATTACK_FRAME_WIDTHS
+                x_pos = 0
+                attack_frames = []
+                for width in frame_widths:
+                    frame = sheet.sheet.subsurface((x_pos, attack_y, width, PLAYER_HEIGHT))
+                    attack_frames.append(frame)
+                    x_pos += width
+                # 20 frames per animation frame = ~3 cycles per second, loops during attack
+                self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=20, loop=True))
+            else:
+                # Normal attack: 32, 56, 32 widths
+                attack_frame_0 = sheet.sheet.subsurface((0, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
+                attack_frame_1 = sheet.sheet.subsurface((PLAYER_WIDTH, attack_y, ATTACK_FRAME_WIDTH, PLAYER_HEIGHT))
+                attack_frame_2 = sheet.sheet.subsurface((PLAYER_WIDTH + ATTACK_FRAME_WIDTH, attack_y, PLAYER_WIDTH, PLAYER_HEIGHT))
+                attack_frames = [attack_frame_0, attack_frame_1, attack_frame_2]
+                self.sprite.add_animation("attack", Animation(attack_frames, frame_duration=5, loop=False))
 
             # Row 4: Roll (4 frames)
             roll_frames = sheet.get_strip(PLAYER_HEIGHT * 4, PLAYER_WIDTH, PLAYER_HEIGHT, 4)
@@ -194,6 +237,32 @@ class Player(pygame.sprite.Sprite):
         """Reload animations with the currently selected skin."""
         # Store current animation state
         current_anim = self.sprite.current_animation
+
+        # Update skin status flags
+        from game.skins import is_ghost_captain_active, is_skeleton_pirate_active
+        old_is_ghost = self.is_ghost_captain
+        old_is_skeleton = self.is_skeleton_pirate
+        self.is_ghost_captain = is_ghost_captain_active()
+        self.is_skeleton_pirate = is_skeleton_pirate_active()
+
+        # Update max health if skin changed
+        skin_changed = (old_is_ghost != self.is_ghost_captain or
+                       old_is_skeleton != self.is_skeleton_pirate)
+        if skin_changed:
+            old_max = self.max_health
+            base_health = PLAYER_MAX_HEALTH
+            if self.is_ghost_captain:
+                base_health += GHOST_SKIN_HEALTH_BONUS
+            elif self.is_skeleton_pirate:
+                base_health -= SKELETON_SKIN_HEALTH_PENALTY
+            self.max_health = max(1, base_health)
+            # Scale current health proportionally
+            if old_max > 0:
+                health_pct = self.health / old_max
+                self.health = max(1, int(self.max_health * health_pct))
+            # Reset skeleton attack counter on skin change
+            self.attack_count = 0
+            self.pending_bone_throw = False
 
         # Clear and reload animations
         self.sprite = AnimatedSprite()
@@ -245,14 +314,25 @@ class Player(pygame.sprite.Sprite):
             self.velocity_x = 0
             return
 
+        # Ghost Captain can move while attacking, others cannot
+        can_move = True
+        if self.attacking and not (self.is_ghost_captain and GHOST_SKIN_CAN_MOVE_WHILE_ATTACKING):
+            can_move = False
+
         # Horizontal movement
         self.velocity_x = 0
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.velocity_x = -PLAYER_SPEED
-            self.facing_right = False
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.velocity_x = PLAYER_SPEED
-            self.facing_right = True
+        if can_move:
+            # Ghost Captain has reduced speed
+            speed = PLAYER_SPEED
+            if self.is_ghost_captain:
+                speed = int(PLAYER_SPEED * GHOST_SKIN_SPEED_MULT)
+
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                self.velocity_x = -speed
+                self.facing_right = False
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                self.velocity_x = speed
+                self.facing_right = True
 
         # Jumping (handled by game.py for double jump sound support)
         # Base jump
@@ -349,7 +429,12 @@ class Player(pygame.sprite.Sprite):
             return None
 
         self.attacking = True
-        self.attack_timer = ATTACK_DURATION
+
+        # Ghost Captain has 2-second flame attack
+        attack_duration = ATTACK_DURATION
+        if self.is_ghost_captain:
+            attack_duration = GHOST_SKIN_ATTACK_DURATION
+        self.attack_timer = attack_duration
 
         # Cutlass Fury reduces cooldown
         cooldown = ATTACK_COOLDOWN
@@ -358,6 +443,14 @@ class Player(pygame.sprite.Sprite):
         self.attack_cooldown = cooldown
 
         self.enemies_hit_this_attack.clear()  # Reset hit tracking for new attack
+        self.last_attack_frame = -1  # Reset frame tracker for Ghost Captain multi-hit
+
+        # Skeleton Pirate: track attacks and throw bone every Nth attack
+        if self.is_skeleton_pirate:
+            self.attack_count += 1
+            if self.attack_count >= SKELETON_SKIN_BONE_EVERY_N_ATTACKS:
+                self.pending_bone_throw = True
+                self.attack_count = 0
 
         # Force attack animation to restart
         self.sprite.play("attack", force_restart=True)
@@ -377,16 +470,29 @@ class Player(pygame.sprite.Sprite):
             return True
         return False
 
+    def get_total_damage_multiplier(self) -> float:
+        """Get the total damage multiplier from all sources."""
+        mult = self.damage_multiplier  # Base multiplier (grog rage sets this to 2)
+        if self.is_skeleton_pirate:
+            mult *= SKELETON_SKIN_DAMAGE_MULT
+        return mult
+
     def get_attack_hitbox(self) -> pygame.Rect | None:
         """Get the current attack hitbox if attacking."""
         if not self.attacking:
             return None
 
-        # Cutlass Fury increases range
-        attack_range = ATTACK_RANGE
-        attack_height = PLAYER_HEIGHT // 2
+        # Ghost Captain has larger flame hitbox
+        if self.is_ghost_captain:
+            attack_range = GHOST_SKIN_ATTACK_RANGE
+            attack_height = GHOST_SKIN_ATTACK_HEIGHT
+        else:
+            attack_range = ATTACK_RANGE
+            attack_height = PLAYER_HEIGHT // 2
+
+        # Cutlass Fury increases range (applies to both)
         if self.has_cutlass_fury:
-            attack_range = int(ATTACK_RANGE * CUTLASS_FURY_RANGE_MULT)
+            attack_range = int(attack_range * CUTLASS_FURY_RANGE_MULT)
             attack_height = int(attack_height * CUTLASS_FURY_RANGE_MULT)
 
         if self.facing_right:
@@ -454,6 +560,15 @@ class Player(pygame.sprite.Sprite):
             self.attack_timer -= 1
             if self.attack_timer <= 0:
                 self.attacking = False
+                self.last_attack_frame = -1
+
+            # Ghost Captain flame attack: reset hit tracking when animation frame changes
+            # This allows the flame to deal damage once per animation cycle
+            if self.is_ghost_captain and self.attacking:
+                current_frame = self.sprite.get_current_frame_index()
+                if current_frame != self.last_attack_frame:
+                    self.enemies_hit_this_attack.clear()
+                    self.last_attack_frame = current_frame
 
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
@@ -522,15 +637,57 @@ class Player(pygame.sprite.Sprite):
         self.rect.x += int(self.velocity_x)
         self.rect.y += int(self.velocity_y)
 
+        # Ghost Captain wispy trail effect
+        if self.is_ghost_captain:
+            self._update_ghost_trail()
+
         # Update animation
         self._update_animation_state()
         self.sprite.update()
         self.image = self.sprite.get_frame()
 
+    def _update_ghost_trail(self) -> None:
+        """Update Ghost Captain's wispy particle trail."""
+        import random
+
+        # Spawn new particles when moving
+        if abs(self.velocity_x) > 0 or abs(self.velocity_y) > 1:
+            # Spawn 2-4 particles per frame when moving (more visible)
+            for _ in range(random.randint(2, 4)):
+                self.trail_particles.append({
+                    "x": self.rect.centerx + random.randint(-10, 10),
+                    "y": self.rect.centery + random.randint(-5, 20),
+                    "vx": random.uniform(-0.8, 0.8),
+                    "vy": random.uniform(-2.0, -0.8),  # Float upward faster
+                    "life": random.randint(25, 45),  # Longer life
+                    "max_life": 45,
+                    "size": random.randint(5, 10),  # Much bigger particles
+                })
+
+        # Update existing particles
+        for p in self.trail_particles:
+            p["x"] += p["vx"]
+            p["y"] += p["vy"]
+            p["life"] -= 1
+            # Slow down slightly
+            p["vx"] *= 0.96
+            p["vy"] *= 0.98
+
+        # Remove dead particles
+        self.trail_particles = [p for p in self.trail_particles if p["life"] > 0]
+
+        # Limit max particles (higher limit for more visible trail)
+        if len(self.trail_particles) > 80:
+            self.trail_particles = self.trail_particles[-80:]
+
     def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
         """Draw the player to the screen."""
         draw_x = self.rect.x - camera_offset[0]
         draw_y = self.rect.y - camera_offset[1]
+
+        # Draw Ghost Captain wispy trail behind player
+        if self.is_ghost_captain and self.trail_particles:
+            self._draw_ghost_trail(surface, camera_offset)
 
         # Flash when invincible (but not during hurt animation)
         if self.invincible and self.hurt_timer <= 0 and self.invincibility_timer % 10 < 5:
@@ -547,3 +704,37 @@ class Player(pygame.sprite.Sprite):
 
         # Draw player sprite
         surface.blit(self.image, (draw_x, draw_y))
+
+    def _draw_ghost_trail(self, surface: pygame.Surface, camera_offset: tuple[int, int]) -> None:
+        """Draw Ghost Captain's wispy particle trail."""
+        for p in self.trail_particles:
+            # Calculate alpha based on remaining life (brighter)
+            life_ratio = p["life"] / p["max_life"]
+            alpha = int(220 * life_ratio)  # Brighter base alpha
+
+            # Brighter spectral blue-green color with cyan tint
+            # Core is brighter, fades to darker edge
+            r = int(120 + 80 * life_ratio)  # 120-200
+            g = int(200 + 55 * life_ratio)  # 200-255
+            b = int(220 + 35 * life_ratio)  # 220-255
+            color = (r, g, b, alpha)
+
+            # Draw position
+            px = int(p["x"]) - camera_offset[0]
+            py = int(p["y"]) - camera_offset[1]
+
+            # Size shrinks as particle fades, but stays bigger
+            size = max(2, int(p["size"] * (0.4 + 0.6 * life_ratio)))
+
+            # Draw as a soft glowing circle
+            particle_surf = pygame.Surface((size * 2 + 4, size * 2 + 4), pygame.SRCALPHA)
+
+            # Outer glow (larger, dimmer)
+            glow_alpha = alpha // 3
+            glow_color = (r, g, b, glow_alpha)
+            pygame.draw.circle(particle_surf, glow_color, (size + 2, size + 2), size + 2)
+
+            # Inner bright core
+            pygame.draw.circle(particle_surf, color, (size + 2, size + 2), size)
+
+            surface.blit(particle_surf, (px - size - 2, py - size - 2))

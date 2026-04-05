@@ -239,6 +239,12 @@ class AnimatedSprite:
             return True
         return self.animations[self.current_animation].is_finished
 
+    def get_current_frame_index(self) -> int:
+        """Get the current frame index of the playing animation."""
+        if not self.current_animation:
+            return 0
+        return self.animations[self.current_animation].current_frame
+
     @property
     def current(self) -> Animation | None:
         """Get the current Animation object."""

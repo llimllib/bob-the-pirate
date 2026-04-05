@@ -195,3 +195,42 @@ def reset_skin_progress() -> None:
             SAVE_FILE.unlink()
         except IOError:
             pass
+
+
+def is_admiral_bob_active() -> bool:
+    """
+    Check if Admiral Bob skin is currently selected.
+
+    Used for applying Admiral Bob's special effect (removing first instance
+    of each regular enemy type).
+    """
+    _ensure_initialized()
+    return _selected_skin == "admiral"
+
+
+def is_ghost_captain_active() -> bool:
+    """
+    Check if Ghost Captain skin is currently selected.
+
+    Used for applying Ghost Captain's special effects:
+    - Higher max health (+2)
+    - Lower movement speed (80%)
+    - Can move while attacking
+    - Longer attack duration (150%)
+    - Wispy particle trail while moving
+    """
+    _ensure_initialized()
+    return _selected_skin == "ghost"
+
+
+def is_skeleton_pirate_active() -> bool:
+    """
+    Check if Skeleton Pirate skin is currently selected.
+
+    Used for applying Skeleton Pirate's special effects:
+    - Lower max health (-2, 3 total)
+    - Higher damage (2x)
+    - Every 4th attack throws a bone projectile
+    """
+    _ensure_initialized()
+    return _selected_skin == "skeleton"

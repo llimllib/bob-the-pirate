@@ -6,6 +6,7 @@ from game.audio import get_audio_manager, play_music, play_sound, stop_music
 from game.camera import Camera
 from game.level import Level
 from game.player import Player
+from game.player_projectiles import BoneProjectile
 from game.powerups import GhostShield, Monkey, Parrot, PlayerCannonball
 from game.screens import (
     GameOverScreen,
@@ -159,6 +160,17 @@ class Game:
             return True
         return False
 
+    def _spawn_bone_projectile(self) -> None:
+        """Spawn a bone projectile for Skeleton Pirate."""
+        direction = 1 if self.player.facing_right else -1
+        # Spawn slightly in front of player
+        spawn_x = self.player.rect.centerx + direction * 20
+        spawn_y = self.player.rect.centery
+        bone = BoneProjectile(spawn_x, spawn_y, direction)
+        self.player_projectiles.add(bone)
+        # Could add a bone throw sound here if we had one
+        play_sound("slash")  # Reuse slash sound for now
+
     def _spawn_boss_minions(self) -> None:
         """Spawn sailors when the boss summons."""
         from game.enemies import Sailor
@@ -268,6 +280,10 @@ class Game:
                     elif event.key == pygame.K_q:
                         if self.player.attack():
                             play_sound("slash")
+                            # Skeleton Pirate bone throw on every 4th attack
+                            if self.player.pending_bone_throw:
+                                self.player.pending_bone_throw = False
+                                self._spawn_bone_projectile()
                     elif event.key == pygame.K_e:
                         # Cannon shot (alternate attack)
                         if self.player.fire_cannon():
@@ -501,6 +517,14 @@ class Game:
         self.player.sprite.update()
         self.player.image = self.player.sprite.get_frame()
 
+        # Ghost Captain flame attack: reset hit tracking when animation frame changes
+        # This allows the flame to deal damage once per animation cycle
+        if self.player.is_ghost_captain and self.player.attacking:
+            current_frame = self.player.sprite.get_current_frame_index()
+            if current_frame != self.player.last_attack_frame:
+                self.player.enemies_hit_this_attack.clear()
+                self.player.last_attack_frame = current_frame
+
         # Update level
         self.level.update(self.player)
 
@@ -710,7 +734,7 @@ class Game:
                     enemy_id = id(enemy)
                     if enemy_id not in self.player.enemies_hit_this_attack:
                         if attack_box.colliderect(enemy.rect):
-                            damage = int(1 * self.player.damage_multiplier)
+                            damage = int(1 * self.player.get_total_damage_multiplier())
                             was_alive = enemy.health > 0
                             killed = enemy.take_damage(damage)
                             self.player.enemies_hit_this_attack.add(enemy_id)
