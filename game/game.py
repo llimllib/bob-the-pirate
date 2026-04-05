@@ -687,6 +687,13 @@ class Game:
                 if attack_box and self.player.rect.colliderect(attack_box):
                     self._try_damage_player(1)
 
+            # Check Hawk talon attacks
+            if hasattr(enemy, 'get_talon_hitbox'):
+                talon_box = enemy.get_talon_hitbox()
+                if talon_box and self.player.rect.colliderect(talon_box):
+                    from game.settings import HAWK_DAMAGE
+                    self._try_damage_player(HAWK_DAMAGE)
+
             # Check Bosun attacks (miniboss with variable damage)
             if hasattr(enemy, 'get_attack_hitbox') and hasattr(enemy, 'get_attack_damage'):
                 attack_box = enemy.get_attack_hitbox()
@@ -723,7 +730,11 @@ class Game:
         # Check projectile collisions
         for projectile in self.level.projectiles:
             if self.player.rect.colliderect(projectile.rect):
-                if self._try_damage_player(projectile.damage):
+                # Blackbeard is immune to projectiles
+                if self.player.is_blackbeard:
+                    play_sound("shield_hit")  # Satisfying feedback
+                    projectile.kill()
+                elif self._try_damage_player(projectile.damage):
                     projectile.kill()
 
         # Check attack hits (each enemy can only be hit once per attack)
@@ -735,6 +746,15 @@ class Game:
                     if enemy_id not in self.player.enemies_hit_this_attack:
                         if attack_box.colliderect(enemy.rect):
                             damage = int(1 * self.player.get_total_damage_multiplier())
+
+                            # Noble Pirate execute: instant kill on 3+ health enemies (not bosses)
+                            if self.player.is_noble_pirate and enemy.max_health >= 3:
+                                # Check if it's a boss (Bosun, Admiral, or GhostCaptain)
+                                from game.enemies import Admiral, Bosun, GhostCaptain
+                                is_boss = isinstance(enemy, (Bosun, Admiral, GhostCaptain))
+                                if not is_boss:
+                                    damage = enemy.health  # Execute - deal lethal damage
+
                             was_alive = enemy.health > 0
                             killed = enemy.take_damage(damage)
                             self.player.enemies_hit_this_attack.add(enemy_id)

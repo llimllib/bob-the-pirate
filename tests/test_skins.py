@@ -1049,3 +1049,145 @@ class TestSkeletonPirateSkin:
         player.reload_skin()
 
         assert player.max_health == PLAYER_MAX_HEALTH - SKELETON_SKIN_HEALTH_PENALTY
+
+
+class TestBlackbeardSkin:
+    """Tests for Blackbeard skin functionality."""
+
+    def test_is_blackbeard_active_when_selected(self):
+        """is_blackbeard_active should return True when blackbeard skin selected."""
+        from game.skins import (
+            is_blackbeard_active,
+            reset_skin_progress,
+            set_selected_skin,
+            unlock_skin,
+        )
+
+        reset_skin_progress()
+        unlock_skin("blackbeard")
+        set_selected_skin("blackbeard")
+
+        assert is_blackbeard_active()
+
+    def test_is_blackbeard_active_when_not_selected(self):
+        """is_blackbeard_active should return False for other skins."""
+        from game.skins import (
+            is_blackbeard_active,
+            reset_skin_progress,
+            set_selected_skin,
+        )
+
+        reset_skin_progress()
+        set_selected_skin("default")
+
+        assert not is_blackbeard_active()
+
+    def test_blackbeard_player_has_flag_set(self):
+        """Player should have is_blackbeard flag when skin is active."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        unlock_skin("blackbeard")
+        set_selected_skin("blackbeard")
+
+        player = Player(0, 0)
+        assert player.is_blackbeard
+
+    def test_normal_player_is_blackbeard_flag_false(self):
+        """Normal player should not have is_blackbeard flag."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin
+
+        reset_skin_progress()
+        set_selected_skin("default")
+
+        player = Player(0, 0)
+        assert not player.is_blackbeard
+
+    def test_blackbeard_reload_skin_updates_flag(self):
+        """Reloading skin should update is_blackbeard flag."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        player = Player(0, 0)
+        assert not player.is_blackbeard
+
+        # Switch to blackbeard
+        unlock_skin("blackbeard")
+        set_selected_skin("blackbeard")
+        player.reload_skin()
+
+        assert player.is_blackbeard
+
+
+class TestNoblePirateSkin:
+    """Tests for Noble Pirate skin functionality."""
+
+    def test_is_noble_pirate_active_when_selected(self):
+        """is_noble_pirate_active should return True when noble skin selected."""
+        from game.skins import (
+            is_noble_pirate_active,
+            reset_skin_progress,
+            set_selected_skin,
+            unlock_skin,
+        )
+
+        reset_skin_progress()
+        unlock_skin("noble")
+        set_selected_skin("noble")
+
+        assert is_noble_pirate_active()
+
+    def test_is_noble_pirate_active_when_not_selected(self):
+        """is_noble_pirate_active should return False for other skins."""
+        from game.skins import (
+            is_noble_pirate_active,
+            reset_skin_progress,
+            set_selected_skin,
+        )
+
+        reset_skin_progress()
+        set_selected_skin("default")
+
+        assert not is_noble_pirate_active()
+
+    def test_noble_pirate_player_has_flag_set(self):
+        """Player should have is_noble_pirate flag when skin is active."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        unlock_skin("noble")
+        set_selected_skin("noble")
+
+        player = Player(0, 0)
+        assert player.is_noble_pirate
+
+    def test_normal_player_is_noble_pirate_flag_false(self):
+        """Normal player should not have is_noble_pirate flag."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin
+
+        reset_skin_progress()
+        set_selected_skin("default")
+
+        player = Player(0, 0)
+        assert not player.is_noble_pirate
+
+    def test_noble_pirate_reload_skin_updates_flag(self):
+        """Reloading skin should update is_noble_pirate flag."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        player = Player(0, 0)
+        assert not player.is_noble_pirate
+
+        # Switch to noble
+        unlock_skin("noble")
+        set_selected_skin("noble")
+        player.reload_skin()
+
+        assert player.is_noble_pirate

@@ -46,9 +46,16 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
 
         # Check for special skins
-        from game.skins import is_ghost_captain_active, is_skeleton_pirate_active
+        from game.skins import (
+            is_blackbeard_active,
+            is_ghost_captain_active,
+            is_noble_pirate_active,
+            is_skeleton_pirate_active,
+        )
         self.is_ghost_captain = is_ghost_captain_active()
         self.is_skeleton_pirate = is_skeleton_pirate_active()
+        self.is_blackbeard = is_blackbeard_active()
+        self.is_noble_pirate = is_noble_pirate_active()
 
         # Set up animated sprite
         self.sprite = AnimatedSprite()
@@ -239,15 +246,26 @@ class Player(pygame.sprite.Sprite):
         current_anim = self.sprite.current_animation
 
         # Update skin status flags
-        from game.skins import is_ghost_captain_active, is_skeleton_pirate_active
+        from game.skins import (
+            is_blackbeard_active,
+            is_ghost_captain_active,
+            is_noble_pirate_active,
+            is_skeleton_pirate_active,
+        )
         old_is_ghost = self.is_ghost_captain
         old_is_skeleton = self.is_skeleton_pirate
+        old_is_blackbeard = self.is_blackbeard
+        old_is_noble = self.is_noble_pirate
         self.is_ghost_captain = is_ghost_captain_active()
         self.is_skeleton_pirate = is_skeleton_pirate_active()
+        self.is_blackbeard = is_blackbeard_active()
+        self.is_noble_pirate = is_noble_pirate_active()
 
         # Update max health if skin changed
         skin_changed = (old_is_ghost != self.is_ghost_captain or
-                       old_is_skeleton != self.is_skeleton_pirate)
+                       old_is_skeleton != self.is_skeleton_pirate or
+                       old_is_blackbeard != self.is_blackbeard or
+                       old_is_noble != self.is_noble_pirate)
         if skin_changed:
             old_max = self.max_health
             base_health = PLAYER_MAX_HEALTH

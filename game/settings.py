@@ -47,6 +47,14 @@ OFFICER_SPEED = 3
 OFFICER_HEALTH = 3
 PROJECTILE_SPEED = 6
 
+# Hawk settings
+HAWK_HEALTH = 4
+HAWK_FLY_SPEED = 3  # Horizontal patrol speed
+HAWK_SWOOP_SPEED = 6  # Speed when diving at player
+HAWK_DAMAGE = 2  # Talon attack damage
+HAWK_DETECTION_RANGE = 200  # How close player must be to trigger swoop
+HAWK_PATROL_RANGE = 150  # How far hawk flies from spawn point
+
 # Collectibles
 COIN_VALUE = 10
 CHEST_POINTS = 100

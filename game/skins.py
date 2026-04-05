@@ -234,3 +234,27 @@ def is_skeleton_pirate_active() -> bool:
     """
     _ensure_initialized()
     return _selected_skin == "skeleton"
+
+
+def is_blackbeard_active() -> bool:
+    """
+    Check if Blackbeard skin is currently selected.
+
+    Used for applying Blackbeard's special effects:
+    - Immune to projectiles (musket balls, cannonballs, admiral sword waves)
+    - Projectiles are destroyed on contact but deal no damage
+    """
+    _ensure_initialized()
+    return _selected_skin == "blackbeard"
+
+
+def is_noble_pirate_active() -> bool:
+    """
+    Check if Noble Pirate skin is currently selected.
+
+    Used for applying Noble Pirate's special effects:
+    - Execute: Instantly kills enemies with 3+ max health on first hit
+    - Does not work on bosses (Bosun, Admiral, Ghost Captain)
+    """
+    _ensure_initialized()
+    return _selected_skin == "noble"

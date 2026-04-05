@@ -196,6 +196,7 @@ class Level:
             GhostMusketeer,
             GhostOfficer,
             GhostSailor,
+            Hawk,
             Musketeer,
             Officer,
             Sailor,
@@ -288,6 +289,9 @@ class Level:
             elif enemy_type == "cannon":
                 faces_right = enemy_data.get("faces_right", True)
                 enemy = Cannon(x, y, self.projectiles, faces_right)
+            elif enemy_type == "hawk":
+                patrol_range = enemy_data.get("patrol_range", 150)
+                enemy = Hawk(x, y, patrol_range)
             elif enemy_type == "admiral":
                 enemy = Admiral(x, y, self.projectiles)
                 # Set arena bounds

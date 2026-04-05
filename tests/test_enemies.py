@@ -12,6 +12,7 @@ from game.enemies import (
     GhostMusketeer,
     GhostOfficer,
     GhostSailor,
+    Hawk,
     MusketBall,
     Musketeer,
     Officer,
@@ -22,6 +23,7 @@ from game.settings import (
     ADMIRAL_PHASE_2_THRESHOLD,
     ADMIRAL_PHASE_3_THRESHOLD,
     BOSUN_HEALTH,
+    HAWK_HEALTH,
     MUSKETEER_HEALTH,
     OFFICER_HEALTH,
     SAILOR_HEALTH,
@@ -877,3 +879,87 @@ class TestGhostEnemies:
 
         # Should start attacking when close
         assert ghost.attacking or ghost.attack_cooldown > 0 or ghost.velocity_x != 0
+
+
+class TestHawk:
+    """Tests for Hawk enemy."""
+
+    def test_hawk_initial_state(self):
+        """Test Hawk spawns with correct initial state."""
+        hawk = Hawk(100, 100)
+
+        assert hawk.health == HAWK_HEALTH
+        assert hawk.state == Hawk.STATE_PATROL
+        assert hawk.active
+        assert hawk.spawn_x == 100
+        assert hawk.spawn_y == 100
+
+    def test_hawk_has_animations(self):
+        """Test Hawk has fly and swoop animations."""
+        hawk = Hawk(100, 100)
+
+        assert "fly" in hawk.sprite.animations
+        assert "swoop" in hawk.sprite.animations
+
+    def test_hawk_patrols_horizontally(self):
+        """Test Hawk moves horizontally during patrol."""
+        hawk = Hawk(100, 100)
+        initial_x = hawk.rect.x
+
+        # Update without player nearby
+        hawk.update(None)
+
+        # Should have moved
+        assert hawk.rect.x != initial_x
+
+    def test_hawk_swoops_when_player_below(self):
+        """Test Hawk swoops when player is below and in range."""
+        hawk = Hawk(100, 100)
+
+        # Player below and in range
+        player_rect = pygame.Rect(100, 200, 32, 48)
+        hawk.update(player_rect)
+
+        assert hawk.state == Hawk.STATE_SWOOP
+
+    def test_hawk_talon_hitbox_when_swooping(self):
+        """Test Hawk has talon hitbox when swooping."""
+        hawk = Hawk(100, 100)
+
+        # Start swoop
+        player_rect = pygame.Rect(100, 200, 32, 48)
+        hawk.update(player_rect)  # Triggers swoop
+        hawk.update(player_rect)  # Moves toward target, sets talon hitbox
+
+        # Should be swooping with talon hitbox
+        assert hawk.state == Hawk.STATE_SWOOP
+        talon = hawk.get_talon_hitbox()
+        assert talon is not None
+
+    def test_hawk_no_talon_hitbox_when_patrolling(self):
+        """Test Hawk has no talon hitbox when patrolling."""
+        hawk = Hawk(100, 100)
+
+        # Update without triggering swoop
+        hawk.update(None)
+
+        talon = hawk.get_talon_hitbox()
+        assert talon is None
+
+    def test_hawk_returns_after_swoop(self):
+        """Test Hawk returns to patrol after completing swoop."""
+        hawk = Hawk(100, 50)  # Start high
+
+        # Trigger swoop
+        player_rect = pygame.Rect(100, 100, 32, 48)
+        hawk.update(player_rect)
+        assert hawk.state == Hawk.STATE_SWOOP
+
+        # Update many times to complete swoop
+        for _ in range(100):
+            hawk.update(player_rect)
+            if hawk.state == Hawk.STATE_RETURN:
+                break
+
+        # Should eventually be returning or back to patrol
+        assert hawk.state in [Hawk.STATE_RETURN, Hawk.STATE_PATROL]

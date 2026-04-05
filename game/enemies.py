@@ -29,6 +29,11 @@ from game.settings import (
     CANNON_SHOOT_COOLDOWN,
     CANNONBALL_GRAVITY,
     CANNONBALL_SPEED,
+    HAWK_DETECTION_RANGE,
+    HAWK_FLY_SPEED,
+    HAWK_HEALTH,
+    HAWK_PATROL_RANGE,
+    HAWK_SWOOP_SPEED,
     MUSKET_BALL_MAX_RANGE,
     MUSKETEER_HEALTH,
     MUSKETEER_SHOOT_COOLDOWN,
@@ -49,6 +54,8 @@ MUSKETEER_HEIGHT = 56
 OFFICER_WIDTH = 40
 OFFICER_HEIGHT = 60
 CANNON_SIZE = 40
+HAWK_WIDTH = 40
+HAWK_HEIGHT = 32
 
 # Stun duration after being hit (prevents enemy from damaging player)
 ENEMY_HIT_STUN_FRAMES = 30  # 0.5 seconds at 60 FPS
@@ -751,6 +758,203 @@ class GhostOfficer(Officer):
             extra_width = frame.get_width() - OFFICER_WIDTH
             if not self.facing_right:
                 draw_x -= extra_width
+
+        surface.blit(frame, (draw_x, draw_y))
+
+
+class Hawk(Enemy):
+    """
+    Flying enemy - a red-feathered hawk that swoops down to attack.
+
+    Behavior:
+    - Flies in the air, patrolling horizontally
+    - When player is in range, swoops down to attack with talons
+    - After swooping, flies to a new random position in patrol area
+    - 4 health, talon attack deals 2 damage
+    """
+
+    # States
+    STATE_PATROL = "patrol"
+    STATE_SWOOP = "swoop"
+    STATE_RETURN = "return"
+
+    def __init__(self, x: int, y: int, patrol_range: int = HAWK_PATROL_RANGE):
+        super().__init__(x, y, HAWK_WIDTH, HAWK_HEIGHT, HAWK_HEALTH, (200, 50, 50))
+        self.spawn_x = x
+        self.spawn_y = y
+        self.patrol_range = patrol_range
+        self.state = self.STATE_PATROL
+        self.facing_right = True
+
+        # Patrol movement
+        self.velocity_x = HAWK_FLY_SPEED
+        self.velocity_y = 0
+
+        # Target position for return state
+        self.target_x = x
+        self.target_y = y
+
+        # Attack state
+        self.attacking = False
+        self.attack_cooldown = 0
+        self.talon_hitbox: pygame.Rect | None = None
+
+        # Set up animated sprite
+        self.sprite = AnimatedSprite()
+        self._load_hawk_animations()
+
+    def _load_hawk_animations(self) -> None:
+        """Load hawk animations from sprite sheet."""
+        hawk_sprite_path = "assets/sprites/hawk.png"
+
+        if os.path.exists(hawk_sprite_path):
+            sheet = SpriteSheet(hawk_sprite_path)
+
+            # Row 0: Flying (2 frames)
+            fly_frames = sheet.get_strip(0, HAWK_WIDTH, HAWK_HEIGHT, 2)
+            self.sprite.add_animation("fly", Animation(fly_frames, frame_duration=8, loop=True))
+
+            # Row 1: Swoop/attack (2 frames)
+            swoop_frames = sheet.get_strip(HAWK_HEIGHT, HAWK_WIDTH, HAWK_HEIGHT, 2)
+            self.sprite.add_animation("swoop", Animation(swoop_frames, frame_duration=6, loop=True))
+        else:
+            # Fallback to placeholder frames
+            hawk_color = (200, 50, 50)
+            fly_frames = create_placeholder_frames(HAWK_WIDTH, HAWK_HEIGHT, hawk_color, 2, "fly")
+            self.sprite.add_animation("fly", Animation(fly_frames, frame_duration=8, loop=True))
+            swoop_frames = create_placeholder_frames(HAWK_WIDTH, HAWK_HEIGHT, (220, 70, 70), 2, "swp")
+            self.sprite.add_animation("swoop", Animation(swoop_frames, frame_duration=6, loop=True))
+
+        self.sprite.play("fly")
+        self.image = self.sprite.get_frame()
+
+    def update(self, player_rect: pygame.Rect | None = None) -> None:
+        """Update hawk behavior."""
+        if not self.active:
+            return
+
+        # Update animation
+        self.sprite.update()
+        self.image = self.sprite.get_frame()
+
+        # Update hit stun
+        self.update_stun()
+
+        # Update attack cooldown
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+
+        # State machine
+        if self.state == self.STATE_PATROL:
+            self._update_patrol(player_rect)
+        elif self.state == self.STATE_SWOOP:
+            self._update_swoop(player_rect)
+        elif self.state == self.STATE_RETURN:
+            self._update_return()
+
+    def _update_patrol(self, player_rect: pygame.Rect | None) -> None:
+        """Patrol horizontally, looking for player."""
+        self.sprite.play("fly")
+        self.attacking = False
+        self.talon_hitbox = None
+
+        # Move horizontally
+        self.rect.x += self.velocity_x
+
+        # Reverse at patrol boundaries
+        if self.rect.x > self.spawn_x + self.patrol_range:
+            self.velocity_x = -HAWK_FLY_SPEED
+            self.facing_right = False
+        elif self.rect.x < self.spawn_x - self.patrol_range:
+            self.velocity_x = HAWK_FLY_SPEED
+            self.facing_right = True
+
+        # Check if player is in range to swoop
+        if player_rect and self.attack_cooldown == 0:
+            dx = player_rect.centerx - self.rect.centerx
+            dy = player_rect.centery - self.rect.centery
+            distance = math.sqrt(dx * dx + dy * dy)
+
+            # Only swoop if player is below and within range
+            if distance < HAWK_DETECTION_RANGE and dy > 0:
+                self.state = self.STATE_SWOOP
+                self.target_x = player_rect.centerx
+                self.target_y = player_rect.centery
+                self.facing_right = dx > 0
+
+    def _update_swoop(self, player_rect: pygame.Rect | None) -> None:
+        """Swoop down toward target."""
+        self.sprite.play("swoop")
+        self.attacking = True
+
+        # Calculate direction to target
+        dx = self.target_x - self.rect.centerx
+        dy = self.target_y - self.rect.centery
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance > 5:
+            # Move toward target
+            self.rect.x += int((dx / distance) * HAWK_SWOOP_SPEED)
+            self.rect.y += int((dy / distance) * HAWK_SWOOP_SPEED)
+            self.facing_right = dx > 0
+
+            # Update talon hitbox (at front of hawk)
+            talon_offset = 15 if self.facing_right else -15
+            self.talon_hitbox = pygame.Rect(
+                self.rect.centerx + talon_offset - 10,
+                self.rect.centery,
+                20,
+                15
+            )
+        else:
+            # Reached target, pick new random position and return
+            self.state = self.STATE_RETURN
+            self.target_x = self.spawn_x + random.randint(-self.patrol_range, self.patrol_range)
+            self.target_y = self.spawn_y + random.randint(-20, 20)
+            self.attack_cooldown = 60  # 1 second cooldown
+            self.attacking = False
+            self.talon_hitbox = None
+
+    def _update_return(self) -> None:
+        """Return to patrol altitude."""
+        self.sprite.play("fly")
+        self.attacking = False
+        self.talon_hitbox = None
+
+        # Calculate direction to target
+        dx = self.target_x - self.rect.centerx
+        dy = self.target_y - self.rect.centery
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance > 5:
+            # Move toward target position
+            self.rect.x += int((dx / distance) * HAWK_FLY_SPEED)
+            self.rect.y += int((dy / distance) * HAWK_FLY_SPEED)
+            self.facing_right = dx > 0
+        else:
+            # Reached position, resume patrol
+            self.state = self.STATE_PATROL
+            self.velocity_x = HAWK_FLY_SPEED if self.facing_right else -HAWK_FLY_SPEED
+
+    def get_talon_hitbox(self) -> pygame.Rect | None:
+        """Get the talon attack hitbox if attacking."""
+        if self.attacking and self.talon_hitbox:
+            return self.talon_hitbox
+        return None
+
+    def draw(self, surface: pygame.Surface, camera_offset: tuple[int, int] = (0, 0)) -> None:
+        """Draw the hawk."""
+        if not self.active:
+            return
+
+        draw_x = self.rect.x - camera_offset[0]
+        draw_y = self.rect.y - camera_offset[1]
+
+        frame = self.sprite.get_frame()
+
+        # Flip sprite based on facing direction
+        if not self.facing_right:
+            frame = pygame.transform.flip(frame, True, False)
 
         surface.blit(frame, (draw_x, draw_y))
 

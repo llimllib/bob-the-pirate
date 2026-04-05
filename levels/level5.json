@@ -2997,6 +2997,24 @@
       "type": "officer",
       "x": 4600,
       "y": 288
+    },
+    {
+      "type": "hawk",
+      "x": 1200,
+      "y": 250,
+      "patrol_range": 200
+    },
+    {
+      "type": "hawk",
+      "x": 2800,
+      "y": 200,
+      "patrol_range": 180
+    },
+    {
+      "type": "hawk",
+      "x": 4000,
+      "y": 150,
+      "patrol_range": 150
     }
   ],
   "collectibles": [
@@ -3204,7 +3222,7 @@
       "skin_id": "noble",
       "hidden_type": "shimmer",
       "x": 2000,
-      "y": 150
+      "y": 330
     }
   ],
   "exit": {
