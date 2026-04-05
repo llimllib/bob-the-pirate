@@ -379,3 +379,19 @@ class TestPlayerSkinLoading:
         player.reload_skin()
 
         assert player.sprite is not None
+
+    def test_sailor_bob_skin_loads(self):
+        """Sailor Bob skin should load without errors."""
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        unlock_skin("sailor")
+        set_selected_skin("sailor")
+
+        player = Player(0, 0)
+
+        assert player.sprite is not None
+        assert "idle" in player.sprite.animations
+        assert "run" in player.sprite.animations
+        assert "attack" in player.sprite.animations
