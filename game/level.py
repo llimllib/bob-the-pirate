@@ -459,7 +459,8 @@ class Level:
     def _apply_enemy_gravity(self, enemy) -> None:
         """Apply gravity and ground collision to an enemy."""
         # Skip stationary enemies (cannons don't need gravity)
-        if enemy.__class__.__name__ == "Cannon":
+        # Skip flying enemies (hawks manage their own vertical movement)
+        if enemy.__class__.__name__ in ("Cannon", "Hawk"):
             return
 
         # Apply gravity

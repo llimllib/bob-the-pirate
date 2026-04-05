@@ -201,8 +201,10 @@ def is_admiral_bob_active() -> bool:
     """
     Check if Admiral Bob skin is currently selected.
 
-    Used for applying Admiral Bob's special effect (removing first instance
-    of each regular enemy type).
+    Used for applying Admiral Bob's special effects:
+    - Removes first instance of each regular enemy type on level load
+    - Execute: Instantly kills enemies with 3+ max health on first hit
+    - Does not work on bosses (Bosun, Admiral/Vice-Admiral Garp, Ghost Captain)
     """
     _ensure_initialized()
     return _selected_skin == "admiral"

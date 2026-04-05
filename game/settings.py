@@ -26,6 +26,8 @@ PLAYER_MAX_HEALTH = 5
 GRAVITY = 0.8
 MAX_FALL_SPEED = 15
 INVINCIBILITY_FRAMES = 60  # 1 second at 60 FPS
+KNOCKBACK_X = 8  # Horizontal knockback velocity
+KNOCKBACK_Y = -6  # Vertical knockback velocity (negative = up)
 
 # Attack settings
 ATTACK_DURATION = 15  # frames
@@ -93,22 +95,22 @@ MONKEY_HEIGHT = 16
 # Miniboss settings (Bosun)
 BOSUN_WIDTH = 44
 BOSUN_HEIGHT = 64
-BOSUN_HEALTH = 6
+BOSUN_HEALTH = 10
 BOSUN_SPEED = 2
 BOSUN_CHARGE_SPEED = 6
-BOSUN_ATTACK_COOLDOWN = 45
+BOSUN_ATTACK_COOLDOWN = 30  # 0.5 seconds (was 0.75)
 BOSUN_STOMP_DAMAGE = 2
 
 # Boss settings
 ADMIRAL_WIDTH = 48
 ADMIRAL_HEIGHT = 72  # Taller than player (48) to be imposing
-ADMIRAL_HEALTH = 10
+ADMIRAL_HEALTH = 15
 ADMIRAL_SPEED = 2
-ADMIRAL_PHASE_2_THRESHOLD = 6  # Phase 2 at 60% health
-ADMIRAL_PHASE_3_THRESHOLD = 3  # Phase 3 at 30% health
-ADMIRAL_ATTACK_COOLDOWN = 90  # 1.5 seconds
+ADMIRAL_PHASE_2_THRESHOLD = 9  # Phase 2 at 60% health
+ADMIRAL_PHASE_3_THRESHOLD = 5  # Phase 3 at ~33% health
+ADMIRAL_ATTACK_COOLDOWN = 60  # 1 second (was 1.5)
 ADMIRAL_CHARGE_SPEED = 8
-ADMIRAL_SUMMON_COOLDOWN = 300  # 5 seconds
+ADMIRAL_SUMMON_COOLDOWN = 240  # 4 seconds (was 5)
 ADMIRAL_SWORD_FRAME_WIDTH = 70  # Width of mid-swing attack frame
 
 # Ghost Captain settings (secret boss)

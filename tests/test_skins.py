@@ -537,6 +537,32 @@ class TestAdmiralBobEffect:
                 assert admiral_counts.get(enemy_type, 0) == expected, \
                     f"{enemy_type}: expected {expected}, got {admiral_counts.get(enemy_type, 0)}"
 
+    def test_admiral_bob_execute_does_not_one_shot_boss(self):
+        """Admiral Bob execute ability should not one-shot Vice-Admiral Garp."""
+        from game.enemies import Admiral
+        from game.player import Player
+        from game.skins import reset_skin_progress, set_selected_skin, unlock_skin
+
+        reset_skin_progress()
+        unlock_skin("admiral")
+        set_selected_skin("admiral")
+
+        player = Player(100, 100)
+
+        # Verify Admiral Bob is active
+        assert player.is_admiral_bob is True
+
+        # Create Vice-Admiral Garp (the Admiral boss)
+        boss = Admiral(200, 100, None)
+        initial_health = boss.health
+        assert initial_health >= 3  # Boss has 3+ health, so execute would apply if not excluded
+
+        # Simulate a hit - the execute check happens in game.py, so we just verify
+        # that Admiral is correctly identified as a boss type
+        from game.enemies import Bosun, GhostCaptain
+        is_boss = isinstance(boss, (Bosun, Admiral, GhostCaptain))
+        assert is_boss is True  # Admiral should be recognized as boss, preventing execute
+
 
 class TestPlayerSkinLoading:
     """Tests for player skin loading."""

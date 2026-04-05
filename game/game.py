@@ -136,11 +136,18 @@ class Game:
                 self.cheat_buffer = ""
                 break
 
-    def _try_damage_player(self, amount: int = 1) -> bool:
+    def _try_damage_player(self, amount: int = 1, source_x: int | None = None) -> bool:
         """
         Try to damage the player, checking for shield first.
         Returns True if damage was processed (blocked or applied).
+
+        Args:
+            amount: Damage amount
+            source_x: X position of damage source for knockback direction.
+                      If None, no knockback is applied.
         """
+        from game.settings import KNOCKBACK_X, KNOCKBACK_Y
+
         if self.player.invincible:
             return False
 
@@ -153,6 +160,15 @@ class Game:
                 return True
 
         if self.player.take_damage(amount):
+            # Apply knockback away from damage source
+            if source_x is not None:
+                if source_x < self.player.rect.centerx:
+                    self.player.velocity_x = KNOCKBACK_X  # Knock right
+                else:
+                    self.player.velocity_x = -KNOCKBACK_X  # Knock left
+                self.player.velocity_y = KNOCKBACK_Y  # Knock up slightly
+                self.player.on_ground = False
+
             if self.player.health > 0:
                 play_sound("hurt")
             else:
@@ -228,6 +244,18 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left click
+                    # Don't process input during transitions
+                    if self.transition.active:
+                        continue
+
+                    if self.state == GameState.MENU and not self.skins_menu.active:
+                        result = self.title_screen.handle_click(event.pos)
+                        if result == "skins":
+                            play_sound("menu_confirm")
+                            self.skins_menu.open()
 
             elif event.type == pygame.KEYDOWN:
                 # Check for cheat codes (process typed letters)
@@ -678,41 +706,46 @@ class Game:
                 continue
 
             if self.player.rect.colliderect(enemy.rect):
-                if self._try_damage_player(1):
+                if self._try_damage_player(1, enemy.rect.centerx):
                     pass  # Damage was applied or blocked
 
             # Check Officer sword attacks
             if hasattr(enemy, 'get_attack_hitbox') and hasattr(enemy, 'attacking'):
                 attack_box = enemy.get_attack_hitbox()
                 if attack_box and self.player.rect.colliderect(attack_box):
-                    self._try_damage_player(1)
+                    self._try_damage_player(1, enemy.rect.centerx)
 
             # Check Hawk talon attacks
             if hasattr(enemy, 'get_talon_hitbox'):
                 talon_box = enemy.get_talon_hitbox()
                 if talon_box and self.player.rect.colliderect(talon_box):
                     from game.settings import HAWK_DAMAGE
-                    self._try_damage_player(HAWK_DAMAGE)
+                    self._try_damage_player(HAWK_DAMAGE, enemy.rect.centerx)
 
             # Check Bosun attacks (miniboss with variable damage)
             if hasattr(enemy, 'get_attack_hitbox') and hasattr(enemy, 'get_attack_damage'):
                 attack_box = enemy.get_attack_hitbox()
                 if attack_box and self.player.rect.colliderect(attack_box):
                     damage = enemy.get_attack_damage()
-                    self._try_damage_player(damage)
+                    self._try_damage_player(damage, enemy.rect.centerx)
 
         # Check boss-specific attacks and death
         if self.level.boss:
             boss = self.level.boss
 
-            if boss.active:
+            if boss.active and boss.can_damage_player():
+                # Contact damage from walking into boss
+                if self.player.rect.colliderect(boss.rect):
+                    self._try_damage_player(1, boss.rect.centerx)
+
+                # Boss attack hitbox damage (sword swings, etc.)
                 attack_box = boss.get_attack_hitbox()
                 if attack_box and self.player.rect.colliderect(attack_box):
                     # Boss charge does 2 damage (check if boss has STATE_CHARGE)
                     damage = 1
                     if hasattr(boss, 'STATE_CHARGE') and boss.state == boss.STATE_CHARGE:
                         damage = 2
-                    self._try_damage_player(damage)
+                    self._try_damage_player(damage, boss.rect.centerx)
 
                 # Handle boss summon
                 if boss.summon_pending:
@@ -734,7 +767,7 @@ class Game:
                 if self.player.is_blackbeard:
                     play_sound("shield_hit")  # Satisfying feedback
                     projectile.kill()
-                elif self._try_damage_player(projectile.damage):
+                elif self._try_damage_player(projectile.damage, projectile.rect.centerx):
                     projectile.kill()
 
         # Check attack hits (each enemy can only be hit once per attack)
@@ -747,9 +780,9 @@ class Game:
                         if attack_box.colliderect(enemy.rect):
                             damage = int(1 * self.player.get_total_damage_multiplier())
 
-                            # Noble Pirate execute: instant kill on 3+ health enemies (not bosses)
-                            if self.player.is_noble_pirate and enemy.max_health >= 3:
-                                # Check if it's a boss (Bosun, Admiral, or GhostCaptain)
+                            # Noble Pirate / Admiral Bob execute: instant kill on 3+ health enemies (not bosses)
+                            if (self.player.is_noble_pirate or self.player.is_admiral_bob) and enemy.max_health >= 3:
+                                # Check if it's a boss (Bosun, Admiral/Vice-Admiral Garp, or GhostCaptain)
                                 from game.enemies import Admiral, Bosun, GhostCaptain
                                 is_boss = isinstance(enemy, (Bosun, Admiral, GhostCaptain))
                                 if not is_boss:

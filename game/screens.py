@@ -218,6 +218,84 @@ class TitleScreen:
         self.frame += 1
         self.wave_offset = math.sin(self.frame * 0.05) * 5
 
+    def _get_hanger_rect(self) -> pygame.Rect:
+        """Get the clickable area of the hanger (the wooden plank)."""
+        hanger_x = 30
+        hanger_y = 20
+        swing = math.sin(self.frame * 0.03) * 3
+        rope_bottom_x = hanger_x + 40 + swing
+        rope_bottom_y = hanger_y + 35
+        plank_width = 80
+        plank_height = 30
+        plank_x = rope_bottom_x - plank_width // 2
+        plank_y = rope_bottom_y
+        return pygame.Rect(plank_x, plank_y, plank_width, plank_height)
+
+    def _draw_hanger(self, surface: pygame.Surface) -> None:
+        """Draw a decorative wooden hanger in the top-left corner."""
+        # Hanger position
+        hanger_x = 30
+        hanger_y = 20
+
+        # Nail/hook at top
+        pygame.draw.circle(surface, (80, 80, 80), (hanger_x + 40, hanger_y), 6)
+        pygame.draw.circle(surface, (120, 120, 120), (hanger_x + 40, hanger_y), 4)
+
+        # Rope from nail to wooden plank (with slight swing based on frame)
+        swing = math.sin(self.frame * 0.03) * 3
+        rope_bottom_x = hanger_x + 40 + swing
+        rope_bottom_y = hanger_y + 35
+
+        # Draw rope (two lines for thickness)
+        rope_color = (139, 119, 80)
+        pygame.draw.line(surface, rope_color, (hanger_x + 40, hanger_y + 5),
+                        (rope_bottom_x - 25, rope_bottom_y), 3)
+        pygame.draw.line(surface, rope_color, (hanger_x + 40, hanger_y + 5),
+                        (rope_bottom_x + 25, rope_bottom_y), 3)
+
+        # Wooden plank (sign board)
+        plank_width = 80
+        plank_height = 30
+        plank_x = rope_bottom_x - plank_width // 2
+        plank_y = rope_bottom_y
+
+        # Plank shadow
+        pygame.draw.rect(surface, (40, 25, 10),
+                        (plank_x + 3, plank_y + 3, plank_width, plank_height))
+
+        # Main plank
+        pygame.draw.rect(surface, WOOD_BROWN,
+                        (plank_x, plank_y, plank_width, plank_height))
+
+        # Plank highlight (top edge)
+        pygame.draw.rect(surface, WOOD_LIGHT,
+                        (plank_x, plank_y, plank_width, 4))
+
+        # Plank border
+        pygame.draw.rect(surface, (60, 40, 20),
+                        (plank_x, plank_y, plank_width, plank_height), 2)
+
+        # Text on plank - now says "SKINS" to hint at functionality
+        plank_font = pygame.font.Font(None, 20)
+        plank_text = plank_font.render("SKINS", True, PARCHMENT)
+        text_rect = plank_text.get_rect(center=(rope_bottom_x, plank_y + plank_height // 2 + 2))
+        surface.blit(plank_text, text_rect)
+
+    def handle_click(self, pos: tuple[int, int]) -> Optional[str]:
+        """
+        Handle mouse click on the title screen.
+
+        Args:
+            pos: Mouse position (x, y)
+
+        Returns:
+            'skins' if hanger was clicked, None otherwise
+        """
+        hanger_rect = self._get_hanger_rect()
+        if hanger_rect.collidepoint(pos):
+            return "skins"
+        return None
+
     def handle_input(self, key: int) -> Optional[tuple[str, str] | str]:
         """
         Handle menu input.
@@ -266,6 +344,9 @@ class TitleScreen:
             wave_height = math.sin((x + self.frame * 2) * 0.03) * 8 + self.wave_offset
             pygame.draw.circle(surface, (150, 200, 255),
                              (x, int(wave_y + wave_height)), 4)
+
+        # Decorative hanger in top-left corner
+        self._draw_hanger(surface)
 
         # Title with shadow and glow effect
         title_text = "BOB THE PIRATE"
