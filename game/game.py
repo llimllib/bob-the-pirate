@@ -782,10 +782,7 @@ class Game:
 
                             # Noble Pirate / Admiral Bob execute: instant kill on 3+ health enemies (not bosses)
                             if (self.player.is_noble_pirate or self.player.is_admiral_bob) and enemy.max_health >= 3:
-                                # Check if it's a boss (Bosun, Admiral/Vice-Admiral Garp, or GhostCaptain)
-                                from game.enemies import Admiral, Bosun, GhostCaptain
-                                is_boss = isinstance(enemy, (Bosun, Admiral, GhostCaptain))
-                                if not is_boss:
+                                if not enemy.is_boss:
                                     damage = enemy.health  # Execute - deal lethal damage
 
                             was_alive = enemy.health > 0

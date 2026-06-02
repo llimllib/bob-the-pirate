@@ -559,9 +559,7 @@ class TestAdmiralBobEffect:
 
         # Simulate a hit - the execute check happens in game.py, so we just verify
         # that Admiral is correctly identified as a boss type
-        from game.enemies import Bosun, GhostCaptain
-        is_boss = isinstance(boss, (Bosun, Admiral, GhostCaptain))
-        assert is_boss is True  # Admiral should be recognized as boss, preventing execute
+        assert boss.is_boss is True  # Admiral should be recognized as boss, preventing execute
 
 
 class TestPlayerSkinLoading:

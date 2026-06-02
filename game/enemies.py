@@ -138,6 +138,7 @@ class Enemy(pygame.sprite.Sprite):
         self.velocity_y = 0
         self.facing_right = True
         self.active = True
+        self.is_boss = False  # Overridden by boss subclasses
 
         # Stun timer - when > 0, enemy cannot damage the player
         self.hit_stun_timer = 0
@@ -981,6 +982,7 @@ class Bosun(Enemy):
 
     def __init__(self, x: int, y: int):
         super().__init__(x, y, BOSUN_WIDTH, BOSUN_HEIGHT, BOSUN_HEALTH, (100, 60, 40))
+        self.is_boss = True
 
         # AI state
         self.state = self.STATE_IDLE
@@ -1083,7 +1085,9 @@ class Bosun(Enemy):
         self.arena_right = right
 
     def take_damage(self, amount: int = 1) -> bool:
-        """Take damage with brief stun."""
+        """Take damage with brief stun. Damage is capped to prevent one-shots."""
+        from game.settings import BOSS_MAX_DAMAGE_PER_HIT
+        amount = min(amount, BOSS_MAX_DAMAGE_PER_HIT)
         result = super().take_damage(amount)
         if not result:
             self.damage_flash = 10
@@ -1390,6 +1394,7 @@ class Admiral(Enemy):
 
     def __init__(self, x: int, y: int, projectile_group: pygame.sprite.Group):
         super().__init__(x, y, ADMIRAL_WIDTH, ADMIRAL_HEIGHT, ADMIRAL_HEALTH, (139, 0, 0))
+        self.is_boss = True
         self.projectile_group = projectile_group
 
         # Set up animated sprite
@@ -1510,7 +1515,9 @@ class Admiral(Enemy):
         return 1
 
     def take_damage(self, amount: int = 1) -> bool:
-        """Take damage with phase change handling."""
+        """Take damage with phase change handling. Damage is capped to prevent one-shots."""
+        from game.settings import BOSS_MAX_DAMAGE_PER_HIT
+        amount = min(amount, BOSS_MAX_DAMAGE_PER_HIT)
         old_phase = self.current_phase
         result = super().take_damage(amount)
 
@@ -1799,6 +1806,7 @@ class GhostCaptain(Enemy):
 
         super().__init__(x, y, GHOST_CAPTAIN_WIDTH, GHOST_CAPTAIN_HEIGHT,
                          GHOST_CAPTAIN_HEALTH, self.GHOST_COLOR)
+        self.is_boss = True
 
         self.speed = GHOST_CAPTAIN_SPEED
         self.attack_cooldown_duration = GHOST_CAPTAIN_ATTACK_COOLDOWN
@@ -2014,13 +2022,15 @@ class GhostCaptain(Enemy):
         self.arena_bottom = bottom
 
     def take_damage(self, amount: int = 1) -> bool:
-        """Take damage - immune during phase mode."""
+        """Take damage - immune during phase mode. Damage is capped to prevent one-shots."""
         if self.state == self.STATE_PHASE:
             return False  # Invulnerable during phase
 
         if self.state == self.STATE_TELEPORT and self.alpha < 128:
             return False  # Invulnerable while faded out
 
+        from game.settings import BOSS_MAX_DAMAGE_PER_HIT
+        amount = min(amount, BOSS_MAX_DAMAGE_PER_HIT)
         self.damage_flash = 15
         self.state = self.STATE_STUNNED
         self.state_timer = 30

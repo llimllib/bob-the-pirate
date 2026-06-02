@@ -113,6 +113,9 @@ ADMIRAL_CHARGE_SPEED = 8
 ADMIRAL_SUMMON_COOLDOWN = 240  # 4 seconds (was 5)
 ADMIRAL_SWORD_FRAME_WIDTH = 70  # Width of mid-swing attack frame
 
+# Boss damage cap (prevents one-shotting bosses)
+BOSS_MAX_DAMAGE_PER_HIT = 3  # Max damage a boss can take from a single hit
+
 # Ghost Captain settings (secret boss)
 GHOST_CAPTAIN_WIDTH = 48
 GHOST_CAPTAIN_HEIGHT = 72

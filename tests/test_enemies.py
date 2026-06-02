@@ -9,6 +9,7 @@ from game.enemies import (
     Bosun,
     Cannon,
     Cannonball,
+    GhostCaptain,
     GhostMusketeer,
     GhostOfficer,
     GhostSailor,
@@ -22,7 +23,9 @@ from game.settings import (
     ADMIRAL_HEALTH,
     ADMIRAL_PHASE_2_THRESHOLD,
     ADMIRAL_PHASE_3_THRESHOLD,
+    BOSS_MAX_DAMAGE_PER_HIT,
     BOSUN_HEALTH,
+    GHOST_CAPTAIN_HEALTH,
     HAWK_HEALTH,
     MUSKETEER_HEALTH,
     OFFICER_HEALTH,
@@ -644,6 +647,97 @@ class TestAdmiral:
         assert Admiral.STATE_IDLE in states_seen
         assert Admiral.STATE_WALK in states_seen
         assert len(states_seen) >= 3
+
+
+class TestBossDamageCap:
+    """Tests that bosses can't be one-shot."""
+
+    def test_bosses_have_is_boss_flag(self, projectile_group):
+        """All bosses should have is_boss=True."""
+        bosun = Bosun(100, 100)
+        admiral = Admiral(400, 400, projectile_group)
+        ghost_captain = GhostCaptain(400, 400)
+
+        assert bosun.is_boss is True
+        assert admiral.is_boss is True
+        assert ghost_captain.is_boss is True
+
+    def test_regular_enemies_not_bosses(self):
+        """Regular enemies should have is_boss=False."""
+        sailor = Sailor(100, 100)
+        assert sailor.is_boss is False
+
+    def test_bosun_damage_capped(self):
+        """Bosun should cap damage per hit to BOSS_MAX_DAMAGE_PER_HIT."""
+        bosun = Bosun(100, 100)
+        assert bosun.health == BOSUN_HEALTH
+
+        bosun.take_damage(BOSUN_HEALTH)  # Try to one-shot
+        assert bosun.health > 0  # Should survive
+        assert bosun.health == BOSUN_HEALTH - BOSS_MAX_DAMAGE_PER_HIT
+
+    def test_admiral_damage_capped(self, projectile_group):
+        """Admiral (Vice-Admiral Garp) should cap damage per hit."""
+        boss = Admiral(400, 400, projectile_group)
+        assert boss.health == ADMIRAL_HEALTH
+
+        boss.take_damage(ADMIRAL_HEALTH)  # Try to one-shot
+        assert boss.health > 0  # Should survive
+        assert boss.health == ADMIRAL_HEALTH - BOSS_MAX_DAMAGE_PER_HIT
+
+    def test_ghost_captain_damage_capped(self):
+        """Ghost Captain (Lord Tim) should cap damage per hit."""
+        boss = GhostCaptain(400, 400)
+        assert boss.health == GHOST_CAPTAIN_HEALTH
+
+        boss.take_damage(GHOST_CAPTAIN_HEALTH)  # Try to one-shot
+        assert boss.health > 0  # Should survive
+        assert boss.health == GHOST_CAPTAIN_HEALTH - BOSS_MAX_DAMAGE_PER_HIT
+
+    def test_bosun_still_dies_from_multiple_hits(self):
+        """Bosun should still die from enough hits."""
+        bosun = Bosun(100, 100)
+        hits_needed = BOSUN_HEALTH // BOSS_MAX_DAMAGE_PER_HIT
+        if BOSUN_HEALTH % BOSS_MAX_DAMAGE_PER_HIT > 0:
+            hits_needed += 1
+
+        for _ in range(hits_needed):
+            result = bosun.take_damage(999)
+        assert result is True  # Should be dead after enough hits
+
+    def test_admiral_still_dies_from_multiple_hits(self, projectile_group):
+        """Admiral should still die from enough hits."""
+        boss = Admiral(400, 400, projectile_group)
+        hits_needed = ADMIRAL_HEALTH // BOSS_MAX_DAMAGE_PER_HIT
+        if ADMIRAL_HEALTH % BOSS_MAX_DAMAGE_PER_HIT > 0:
+            hits_needed += 1
+
+        for _ in range(hits_needed):
+            result = boss.take_damage(999)
+        assert result is True  # Should be dead after enough hits
+
+    def test_ghost_captain_still_dies_from_multiple_hits(self):
+        """Ghost Captain should still die from enough hits."""
+        boss = GhostCaptain(400, 400)
+        hits_needed = GHOST_CAPTAIN_HEALTH // BOSS_MAX_DAMAGE_PER_HIT
+        if GHOST_CAPTAIN_HEALTH % BOSS_MAX_DAMAGE_PER_HIT > 0:
+            hits_needed += 1
+
+        for _ in range(hits_needed):
+            # Force out of immune states for Ghost Captain
+            boss.state = boss.STATE_IDLE
+            result = boss.take_damage(999)
+        assert result is True  # Should be dead after enough hits
+
+    def test_normal_damage_unaffected(self, projectile_group):
+        """Normal damage (1-2) should not be capped."""
+        boss = Admiral(400, 400, projectile_group)
+        boss.take_damage(1)
+        assert boss.health == ADMIRAL_HEALTH - 1
+
+        boss2 = Admiral(400, 400, projectile_group)
+        boss2.take_damage(2)
+        assert boss2.health == ADMIRAL_HEALTH - 2
 
 
 class TestProjectiles:
