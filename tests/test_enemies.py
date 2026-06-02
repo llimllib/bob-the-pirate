@@ -531,15 +531,17 @@ class TestAdmiral:
         # Phase 1
         assert boss.current_phase == 1
 
-        # Damage to phase 2 threshold
+        # Damage to phase 2 threshold (multiple hits due to damage cap)
         damage_to_phase2 = ADMIRAL_HEALTH - ADMIRAL_PHASE_2_THRESHOLD
-        boss.take_damage(damage_to_phase2)
+        for _ in range(damage_to_phase2):
+            boss.take_damage(1)
         assert boss.current_phase == 2
         assert boss.state == Admiral.STATE_STUNNED  # Brief stun on phase change
 
         # Damage to phase 3 threshold
         damage_to_phase3 = ADMIRAL_PHASE_2_THRESHOLD - ADMIRAL_PHASE_3_THRESHOLD
-        boss.take_damage(damage_to_phase3)
+        for _ in range(damage_to_phase3):
+            boss.take_damage(1)
         assert boss.current_phase == 3
         assert boss.state == Admiral.STATE_STUNNED
 
@@ -547,7 +549,9 @@ class TestAdmiral:
         """Admiral should die when health reaches 0."""
         boss = Admiral(400, 400, projectile_group)
 
-        result = boss.take_damage(ADMIRAL_HEALTH)
+        # Deal damage in capped increments
+        for _ in range(ADMIRAL_HEALTH // BOSS_MAX_DAMAGE_PER_HIT):
+            result = boss.take_damage(BOSS_MAX_DAMAGE_PER_HIT)
 
         assert result  # Died
         assert not boss.active
